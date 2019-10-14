@@ -54,20 +54,20 @@ allowedBlocks:
    - glass_pane
    - all_fence_gate
    - nether_brick
-   - enchantment_table
+   - enchanting_table
    - brewing_stand
    - cauldron
    - end_stone
    - dragon_egg
    - redstone_lamp
-   - ender chest
+   - ender_chest
    - TRIPWIRE_HOOK
    - EMERALD_BLOCK
    - BEACON
    - cobblestone_wall
    - mossy_cobblestone_wall
    - FLOWER_POT
-   - SKULL
+   - all_skull
    - all_ANVIL
    - TRAPPED_CHEST
    - COMPARATOR
