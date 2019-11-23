@@ -34,7 +34,7 @@ public class AscendSign implements Listener {
 
     @EventHandler
     public void onSignClickEvent(PlayerInteractEvent event){
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getPlayer().isSneaking()) {
             return;
         }
         Block block = event.getClickedBlock();

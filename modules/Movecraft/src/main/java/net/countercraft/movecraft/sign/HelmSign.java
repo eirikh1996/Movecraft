@@ -30,6 +30,8 @@ public final class HelmSign implements Listener {
     @EventHandler
     public final void onSignClick(PlayerInteractEvent event) {
         Rotation rotation;
+        if (event.getPlayer().isSneaking())
+            return;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             rotation = Rotation.CLOCKWISE;
         }else if(event.getAction() == Action.LEFT_CLICK_BLOCK){

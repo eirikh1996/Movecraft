@@ -29,7 +29,7 @@ public class RegionDamagedSign implements Listener {
 
     @EventHandler
     public void onSignRightClick(PlayerInteractEvent event){
-        if (!event.getAction().equals(Action.RIGHT_CLICK_BLOCK)){
+        if (!event.getAction().equals(Action.RIGHT_CLICK_BLOCK) || event.getPlayer().isSneaking()){
             return;
         }
         if (event.getClickedBlock().getType() != Material.WALL_SIGN){

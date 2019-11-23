@@ -41,7 +41,7 @@ public final class CraftSign implements Listener{
 
     @EventHandler
     public final void onSignClick(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getPlayer().isSneaking()) {
             return;
         }
         Block block = event.getClickedBlock();
