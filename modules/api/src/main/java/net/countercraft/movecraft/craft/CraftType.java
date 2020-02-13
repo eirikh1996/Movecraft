@@ -19,6 +19,7 @@ package net.countercraft.movecraft.craft;
 
 import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
@@ -92,8 +93,11 @@ final public class CraftType {
     private final int gravityDropDistance;
     private final int gravityInclineDistance;
 
+    @NotNull private final Map<String, Object> flags;
+
     @SuppressWarnings("unchecked")
     public CraftType(File f) {
+        flags = new HashMap<>();
         final Map data;
         try {
             InputStream input = new FileInputStream(f);
@@ -625,6 +629,42 @@ final public class CraftType {
     public int getGravityInclineDistance() {
         return gravityInclineDistance;
     }
+
+    public int getInt(String flag, int defaultValue) {
+        return (int) flags.getOrDefault(flag, defaultValue);
+    }
+
+    public byte getByte(String flag, byte defaultValue) {
+        return (byte) flags.getOrDefault(flag, defaultValue);
+    }
+
+    public long getLong(String flag, long defaultValue) {
+        return (long) flags.getOrDefault(flag, defaultValue);
+    }
+
+    public short getShort(String flag, short defaultValue) {
+        return (short) flags.getOrDefault(flag, defaultValue);
+    }
+
+    public boolean getBoolean(String flag, boolean defaultValue) {
+        return (boolean) flags.getOrDefault(flag, defaultValue);
+    }
+
+    public String getString(String flag, String defaultValue) {
+        return (String) flags.getOrDefault(flag, defaultValue);
+    }
+    
+    public List<String> getStringList(String flag) {
+        return (List<String>) flags.getOrDefault(flag, new ArrayList<>());
+    }
+
+    @Nullable
+    public Object getFlag(String flag) {
+        return flags.get(flag);
+    }
+
+
+
 
     private class TypeNotFoundException extends RuntimeException {
         public TypeNotFoundException(String s) {
