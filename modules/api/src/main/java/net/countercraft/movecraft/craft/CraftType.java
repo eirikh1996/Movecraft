@@ -631,7 +631,7 @@ final public class CraftType {
     }
 
     public int getInt(String flag, int defaultValue) {
-        return (int) flags.getOrDefault(flag, defaultValue);
+        return integerFromObject(flags.getOrDefault(flag, defaultValue));
     }
 
     public byte getByte(String flag, byte defaultValue) {
