@@ -97,7 +97,6 @@ final public class CraftType {
 
     @SuppressWarnings("unchecked")
     public CraftType(File f) {
-        flags = new HashMap<>();
         final Map data;
         try {
             InputStream input = new FileInputStream(f);
@@ -107,7 +106,7 @@ final public class CraftType {
         } catch (IOException e) {
             throw new TypeNotFoundException("No file found at path " + f.getAbsolutePath());
         }
-
+        flags = data;
         //Required craft flags
         craftName = (String) data.get("name");
         maxSize = integerFromObject(data.get("maxSize"));
@@ -262,6 +261,27 @@ final public class CraftType {
             return ((Integer) obj).floatValue();
         }
         return (float) obj;
+    }
+
+    private long longFromObject(Object obj) {
+        if (obj instanceof Double) {
+            return ((Double) obj).longValue();
+        }
+        return (long) obj;
+    }
+
+    private short shortFromObject(Object obj) {
+        if (obj instanceof Double) {
+            return ((Double) obj).shortValue();
+        }
+        return (short) obj;
+    }
+
+    private byte byteFromObject(Object obj) {
+        if (obj instanceof Double) {
+            return ((Double) obj).byteValue();
+        }
+        return (byte) obj;
     }
 
     private int[] blockIDListFromObject(Object obj) {
@@ -630,37 +650,40 @@ final public class CraftType {
         return gravityInclineDistance;
     }
 
-    public int getInt(String flag, int defaultValue) {
+    public int getIntegerFlag(@NotNull String flag, int defaultValue) {
         return integerFromObject(flags.getOrDefault(flag, defaultValue));
     }
 
-    public byte getByte(String flag, byte defaultValue) {
-        return (byte) flags.getOrDefault(flag, defaultValue);
+    public byte getByteFlag(@NotNull String flag, byte defaultValue) {
+        return byteFromObject(flags.getOrDefault(flag, defaultValue));
     }
 
-    public long getLong(String flag, long defaultValue) {
-        return (long) flags.getOrDefault(flag, defaultValue);
+    public long getLongFlag(@NotNull String flag, long defaultValue) {
+        return longFromObject(flags.getOrDefault(flag, defaultValue));
     }
 
-    public short getShort(String flag, short defaultValue) {
-        return (short) flags.getOrDefault(flag, defaultValue);
+    public short getShortFlag(@NotNull String flag, short defaultValue) {
+        return shortFromObject(flags.getOrDefault(flag, defaultValue));
     }
 
-    public boolean getBoolean(String flag, boolean defaultValue) {
+
+    public boolean getBooleanFlag(@NotNull String flag, boolean defaultValue) {
         return (boolean) flags.getOrDefault(flag, defaultValue);
     }
 
-    public String getString(String flag, String defaultValue) {
+    @NotNull
+    public String getStringFlag(@NotNull String flag, String defaultValue) {
         return (String) flags.getOrDefault(flag, defaultValue);
     }
-    
-    public List<String> getStringList(String flag) {
+
+    @NotNull
+    public List<String> getStringList(@NotNull String flag) {
         return (List<String>) flags.getOrDefault(flag, new ArrayList<>());
     }
 
     @Nullable
-    public Object getFlag(String flag) {
-        return flags.get(flag);
+    public Object getFlag(@NotNull String flag) {
+        return flags.getOrDefault(flag, null);
     }
 
 
