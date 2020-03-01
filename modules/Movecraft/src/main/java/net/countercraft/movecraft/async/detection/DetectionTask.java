@@ -18,11 +18,15 @@
 package net.countercraft.movecraft.async.detection;
 
 
+import at.pavlov.cannons.API.CannonsAPI;
+import at.pavlov.cannons.cannon.Cannon;
+import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.async.AsyncTask;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.HashHitBox;
+import net.countercraft.movecraft.utils.HitBox;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -84,13 +88,46 @@ public class DetectionTask extends AsyncTask {
             ratio = ratio * getCraft().getType().getDynamicFlyBlockSpeedFactor();
             data.dynamicFlyBlockSpeedMultiplier = ratio;
         }
-        if (isWithinLimit(blockList.size(), minSize, maxSize)) {
-            data.setBlockList(blockList);
-            if (confirmStructureRequirements(flyBlocks, blockTypeCount)) {
-                data.setHitBox(blockList);
-                data.setFluidBox(fluidList);
+        if (!isWithinLimit(blockList.size(), minSize, maxSize)) {
+            return;
+        }
+
+        data.setBlockList(blockList);
+        if (!confirmStructureRequirements(flyBlocks, blockTypeCount)) {
+            return;
+        }
+        if (Movecraft.getInstance().getCannonsPlugin() != null && !withinCannonLimmitations(blockList)) {
+            return;
+        }
+        data.setHitBox(blockList);
+        data.setFluidBox(fluidList);
+    }
+
+    private boolean withinCannonLimmitations(HitBox hitBox) {
+        Location center = hitBox.getMidPoint().toBukkit(world);
+        Set<Cannon> cannons = CannonsAPI.getCannonsInBox(center, hitBox.getXLength(), hitBox.getYLength(), hitBox.getZLength());
+        Set<Cannon> cannonsOnCraft = new HashSet<>();
+        for (Cannon can : cannons) {
+            if (!hitBox.contains(can.getOffset().getBlockX(), can.getOffset().getBlockY(), can.getOffset().getBlockZ())) {
+                continue;
+            }
+            cannonsOnCraft.add(can);
+        }
+        int maxCannons = craft.getType().getMaxCannons();
+        if (maxCannons > -1 && cannonsOnCraft.size() > maxCannons) {
+            fail(String.format(I18nSupport.getInternationalisedString("Detection - Too many cannons"), cannonsOnCraft.size(), maxCannons));
+            return false;
+        }
+        for (Cannon cannon : cannonsOnCraft) {
+            for (String allowed : craft.getType().getAllowedCannons()) {
+                if (!cannon.getCannonName().equalsIgnoreCase(allowed)) {
+                    continue;
+                }
+                fail(String.format(I18nSupport.getInternationalisedString("Detection - Cannon not allowed"), cannon.getCannonName()) + String.join(",", craft.getType().getAllowedCannons()));
+                return false;
             }
         }
+        return true;
     }
 
     private void detectBlock(int x, int y, int z) {

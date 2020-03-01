@@ -69,6 +69,8 @@ final public class CraftType {
     private final int tickCooldown;
     private final int hoverLimit;
     private final int dynamicFlyBlock;
+    private final int maxCannons;
+    @NotNull private final String[] allowedCannons;
     private final double fuelBurnRate;
     private final double sinkPercent;
     private final double overallSinkPercent;
@@ -234,6 +236,8 @@ final public class CraftType {
         gravityInclineDistance = integerFromObject(data.getOrDefault("gravityInclineDistance", -1));
         int dropdist = integerFromObject(data.getOrDefault("gravityDropDistance", -8));
         gravityDropDistance = dropdist > 0 ? -dropdist : dropdist;
+        maxCannons = integerFromObject(data.getOrDefault("maxCannons", -1));
+        allowedCannons = stringListFromObject(data.getOrDefault("allowedCannons", Collections.emptyList()));
     }
 
     private int integerFromObject(Object obj) {
@@ -624,6 +628,15 @@ final public class CraftType {
 
     public int getGravityInclineDistance() {
         return gravityInclineDistance;
+    }
+
+    public int getMaxCannons() {
+        return maxCannons;
+    }
+
+    @NotNull
+    public String[] getAllowedCannons() {
+        return allowedCannons;
     }
 
     private class TypeNotFoundException extends RuntimeException {
