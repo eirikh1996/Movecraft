@@ -237,7 +237,7 @@ final public class CraftType {
         int dropdist = integerFromObject(data.getOrDefault("gravityDropDistance", -8));
         gravityDropDistance = dropdist > 0 ? -dropdist : dropdist;
         maxCannons = integerFromObject(data.getOrDefault("maxCannons", -1));
-        allowedCannons = stringListFromObject(data.getOrDefault("allowedCannons", Collections.emptyList()));
+        allowedCannons = stringListFromObject(data.getOrDefault("allowedCannons", new ArrayList<>()));
     }
 
     private int integerFromObject(Object obj) {

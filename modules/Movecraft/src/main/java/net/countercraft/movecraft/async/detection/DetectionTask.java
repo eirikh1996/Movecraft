@@ -27,6 +27,8 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.HashHitBox;
 import net.countercraft.movecraft.utils.HitBox;
+import net.countercraft.movecraft.utils.MathUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -96,33 +98,43 @@ public class DetectionTask extends AsyncTask {
         if (!confirmStructureRequirements(flyBlocks, blockTypeCount)) {
             return;
         }
-        if (Movecraft.getInstance().getCannonsPlugin() != null && !withinCannonLimmitations(blockList)) {
+        if (Movecraft.getInstance().getCannonsPlugin() != null && !withinCannonLimitations(blockList)) {
             return;
         }
         data.setHitBox(blockList);
         data.setFluidBox(fluidList);
     }
 
-    private boolean withinCannonLimmitations(HitBox hitBox) {
+    private boolean withinCannonLimitations(HitBox hitBox) {
         Location center = hitBox.getMidPoint().toBukkit(world);
         Set<Cannon> cannons = CannonsAPI.getCannonsInBox(center, hitBox.getXLength(), hitBox.getYLength(), hitBox.getZLength());
         Set<Cannon> cannonsOnCraft = new HashSet<>();
         for (Cannon can : cannons) {
-            if (!hitBox.contains(can.getOffset().getBlockX(), can.getOffset().getBlockY(), can.getOffset().getBlockZ())) {
-                continue;
+            for (final Location loc : can.getCannonDesign().getBarrelBlocks(can)) {
+                if (!hitBox.contains(MathUtils.bukkit2MovecraftLoc(loc))) {
+                    continue;
+                }
+                cannonsOnCraft.add(can);
+                break;
             }
-            cannonsOnCraft.add(can);
+
         }
+        Bukkit.broadcastMessage("Cannons: " + cannons.size() + ", Cannons on craft: " + cannonsOnCraft.size());
         int maxCannons = craft.getType().getMaxCannons();
         if (maxCannons > -1 && cannonsOnCraft.size() > maxCannons) {
-            fail(String.format(I18nSupport.getInternationalisedString("Detection - Too many cannons"), cannonsOnCraft.size(), maxCannons));
+            fail(I18nSupport.getInternationalisedString("Detection - Too many cannons") + " " + cannonsOnCraft.size() + " > " + maxCannons);
             return false;
         }
         for (Cannon cannon : cannonsOnCraft) {
+            boolean forbidden = true;
             for (String allowed : craft.getType().getAllowedCannons()) {
                 if (!cannon.getCannonName().equalsIgnoreCase(allowed)) {
                     continue;
                 }
+                forbidden = false;
+            }
+            Bukkit.broadcastMessage(String.valueOf(forbidden));
+            if (forbidden) {
                 fail(String.format(I18nSupport.getInternationalisedString("Detection - Cannon not allowed"), cannon.getCannonName()) + String.join(",", craft.getType().getAllowedCannons()));
                 return false;
             }
