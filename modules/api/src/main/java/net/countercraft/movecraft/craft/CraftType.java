@@ -677,10 +677,14 @@ final public class CraftType {
     }
 
     @NotNull
-    public List<String> getStringList(@NotNull String flag) {
+    public List<String> getStringListFlag(@NotNull String flag) {
         return (List<String>) flags.getOrDefault(flag, new ArrayList<>());
     }
 
+    @NotNull
+    public List<Integer> getIntegerListFlag(@NotNull String flag) {
+        return (List<Integer>) flags.getOrDefault(flag, new ArrayList<>());
+    }
     @Nullable
     public Object getFlag(@NotNull String flag) {
         return flags.getOrDefault(flag, null);
