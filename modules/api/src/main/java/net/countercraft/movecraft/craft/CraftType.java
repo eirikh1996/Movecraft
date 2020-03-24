@@ -685,6 +685,11 @@ final public class CraftType {
     public List<Integer> getIntegerListFlag(@NotNull String flag) {
         return (List<Integer>) flags.getOrDefault(flag, new ArrayList<>());
     }
+
+    @NotNull
+    public Map<?, ?> getMapFlag(@NotNull String flag) {
+        return (Map<?, ?>) flags.getOrDefault(flag, new HashMap<>());
+    }
     @Nullable
     public Object getFlag(@NotNull String flag) {
         return flags.getOrDefault(flag, null);
