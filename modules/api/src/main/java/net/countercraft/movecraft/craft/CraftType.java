@@ -89,6 +89,7 @@ final public class CraftType {
     @NotNull private final List<Material> harvesterBladeBlocks;
     @NotNull private final Set<Material> passthroughBlocks;
     @NotNull private final Set<Material> forbiddenHoverOverBlocks;
+    @NotNull private final Set<Material> interiorBlocks;
     private final int gravityDropDistance;
     private final int gravityInclineDistance;
 
@@ -225,6 +226,17 @@ final public class CraftType {
         if (!canHoverOverWater){
             forbiddenHoverOverBlocks.add(Material.WATER);
             forbiddenHoverOverBlocks.add(Material.STATIONARY_WATER);
+        }
+        interiorBlocks = new HashSet<>();
+        if (data.containsKey("interiorBlocks")) {
+            final ArrayList objList = (ArrayList) data.get("interiorBlocks");
+            for (Object i : objList){
+                if (i instanceof Integer){
+                    interiorBlocks.add(Material.getMaterial((int) i));
+                } else if (i instanceof String){
+                    interiorBlocks.add(Material.getMaterial(((String) i).toUpperCase()));
+                }
+            }
         }
         allowVerticalTakeoffAndLanding = (boolean) data.getOrDefault("allowVerticalTakeoffAndLanding", true);
         dynamicLagSpeedFactor = doubleFromObject(data.getOrDefault("dynamicLagSpeedFactor", 0d));
@@ -616,6 +628,11 @@ final public class CraftType {
     @NotNull
     public Set<Material> getForbiddenHoverOverBlocks() {
         return forbiddenHoverOverBlocks;
+    }
+
+    @NotNull
+    public Set<Material> getInteriorBlocks() {
+        return interiorBlocks;
     }
 
     public int getGravityDropDistance() {

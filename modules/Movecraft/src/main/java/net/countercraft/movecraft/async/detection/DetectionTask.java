@@ -22,7 +22,7 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.async.AsyncTask;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.HashHitBox;
+import net.countercraft.movecraft.utils.*;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -96,10 +96,12 @@ public class DetectionTask extends AsyncTask {
             ratio = ratio * getCraft().getType().getDynamicFlyBlockSpeedFactor();
             dynamicFlyBlockSpeedMultiplier = ratio;
         }
+        detectInterior();
         if (!isWithinLimit(hitBox.size(), minSize, maxSize)) {
             return;
         }
         confirmStructureRequirements(flyBlocks, blockTypeCount);
+
     }
 
     private void detectBlock(int x, int y, int z) {
@@ -443,6 +445,55 @@ public class DetectionTask extends AsyncTask {
         }
 
         return true;
+    }
+
+    private void detectInterior() {
+        if (craft.getType().getInteriorBlocks().isEmpty())
+            return;
+        final HitBox invertedHitBox = CollectionUtils.filter(hitBox.boundingHitBox(), hitBox);
+
+        //A set of locations that are confirmed to be "exterior" locations
+        final MutableHitBox confirmed = new HashHitBox();
+
+        //place phased blocks
+        final int minX = hitBox.getMinX();
+        final int maxX = hitBox.getMaxX();
+        final int minY = hitBox.getMinY();
+        final int maxY = hitBox.getMaxY();
+        final int minZ = hitBox.getMinZ();
+        final int maxZ = hitBox.getMaxZ();
+        final HitBox[] surfaces = {
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))};
+        final Set<MovecraftLocation> validExterior = new HashSet<>();
+        for (HitBox surface : surfaces) {
+            validExterior.addAll(CollectionUtils.filter(surface, hitBox).asSet());
+        }
+
+        //Check to see which locations in the from set are actually outside of the craft
+        //use a modified BFS for multiple origin elements
+        Set<MovecraftLocation> visited = new HashSet<>();
+        Queue<MovecraftLocation> queue = new LinkedList<>(validExterior);
+        while (!queue.isEmpty()) {
+            MovecraftLocation node = queue.poll();
+            if(visited.contains(node))
+                continue;
+            visited.add(node);
+            //If the node is already a valid member of the exterior of the HitBox, continued search is unitary.
+            for (MovecraftLocation neighbor : CollectionUtils.neighbors(invertedHitBox, node)) {
+                queue.add(neighbor);
+            }
+        }
+        confirmed.addAll(visited);
+        HitBox interior = CollectionUtils.filter(invertedHitBox, confirmed);
+        for (MovecraftLocation iLoc : interior) {
+            if (!craft.getType().getInteriorBlocks().contains(iLoc.toBukkit(world).getBlock().getType()))
+                continue;
+            hitBox.add(iLoc);
+        }
     }
 
     private void fail(String message) {
