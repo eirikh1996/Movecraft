@@ -137,9 +137,9 @@ public class AsyncManager extends BukkitRunnable {
                 Player notifyP = task.getNotificationPlayer();
                 Craft pCraft = CraftManager.getInstance().getCraftByPlayer(p);
                 boolean failed = task.failed();
-                if (pCraft != null && p != null) {
+                if (pCraft != null) {
                     // Player is already controlling a craft
-                    notifyP.sendMessage(I18nSupport.getInternationalisedString("Detection - Failed - Already commanding a craft"));
+                    p.sendMessage(I18nSupport.getInternationalisedString("Detection - Failed - Already commanding a craft"));
                 } else {
                     if (failed) {
                         if (notifyP != null)
@@ -155,27 +155,31 @@ public class AsyncManager extends BukkitRunnable {
                         boolean isSubcraft = false;
 
                         for (Craft craft : craftsInWorld) {
-                            if(craft.getHitBox().intersects(task.getHitBox())){
+                            if(craft == task.craft){
+                                continue;
+                            }
+                            if(!craft.getHitBox().union(task.getHitBox()).isEmpty()){
+                                if(craft.getNotificationPlayer() != null && !craft.getType().getCruiseOnPilot()){
+                                    continue;
+                                }
                                 isSubcraft = true;
-                                if (c.getType().getCruiseOnPilot() || p != null) {
-                                    if (craft.getType() == c.getType()
-                                            || craft.getHitBox().size() <= task.getHitBox().size()) {
-                                        notifyP.sendMessage(I18nSupport.getInternationalisedString(
-                                                "Detection - Failed Craft is already being controlled"));
+                                if (craft.getType() == c.getType()
+                                        || craft.getHitBox().size() <= task.getHitBox().size()) {
+                                    p.sendMessage(I18nSupport.getInternationalisedString(
+                                            "Detection - Failed Craft is already being controlled"));
+                                    failed = true;
+                                } else {
+                                    // if this is a different type than
+                                    // the overlapping craft, and is
+                                    // smaller, this must be a child
+                                    // craft, like a fighter on a
+                                    // carrier
+                                    if (!craft.isNotProcessing()) {
                                         failed = true;
-                                    } else {
-                                        // if this is a different type than
-                                        // the overlapping craft, and is
-                                        // smaller, this must be a child
-                                        // craft, like a fighter on a
-                                        // carrier
-                                        if (!craft.isNotProcessing()) {
-                                            failed = true;
-                                            notifyP.sendMessage(I18nSupport.getInternationalisedString("Detection - Parent Craft is busy"));
-                                        }
-                                        craft.setHitBox(new HashHitBox(CollectionUtils.filter(craft.getHitBox(), task.getHitBox())));
-                                        craft.setOrigBlockCount(craft.getOrigBlockCount() - task.getHitBox().size());
+                                        p.sendMessage(I18nSupport.getInternationalisedString("Detection - Parent Craft is busy"));
                                     }
+                                    craft.setHitBox(craft.getHitBox().difference(task.getHitBox()));
+                                    craft.setOrigBlockCount(craft.getOrigBlockCount() - task.getHitBox().size());
                                 }
                             }
 
@@ -183,7 +187,7 @@ public class AsyncManager extends BukkitRunnable {
                         }
                         if (c.getType().getMustBeSubcraft() && !isSubcraft) {
                             failed = true;
-                            notifyP.sendMessage(I18nSupport.getInternationalisedString("Craft must be part of another craft"));
+                            p.sendMessage(I18nSupport.getInternationalisedString("Craft must be part of another craft"));
                         }
                         if (!failed) {
                             c.setHitBox(task.getHitBox());
@@ -193,11 +197,11 @@ public class AsyncManager extends BukkitRunnable {
                             final int waterLine = c.getWaterLine();
                             if(!c.getType().blockedByWater() && c.getHitBox().getMinY() <= waterLine){
                                 //The subtraction of the set of coordinates in the HitBox cube and the HitBox itself
-                                final HitBox invertedHitBox = CollectionUtils.filter(c.getHitBox().boundingHitBox(), c.getHitBox());
+                                final BitmapHitBox invertedHitBox = new BitmapHitBox(c.getHitBox().boundingHitBox()).difference(c.getHitBox());
 
                                 //A set of locations that are confirmed to be "exterior" locations
-                                final MutableHitBox confirmed = new HashHitBox();
-                                final MutableHitBox entireHitbox = new HashHitBox(c.getHitBox());
+                                final BitmapHitBox confirmed = new BitmapHitBox();
+                                final BitmapHitBox entireHitbox = new BitmapHitBox(c.getHitBox());
 
                                 //place phased blocks
                                 final Set<MovecraftLocation> overlap = new HashSet<>(c.getPhaseBlocks().keySet());
@@ -214,15 +218,15 @@ public class AsyncManager extends BukkitRunnable {
                                         new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
                                         new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
                                         new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))};
-                                final Set<MovecraftLocation> validExterior = new HashSet<>();
+                                final BitmapHitBox validExterior = new BitmapHitBox();
                                 for (HitBox hitBox : surfaces) {
-                                    validExterior.addAll(CollectionUtils.filter(hitBox, c.getHitBox()).asSet());
+                                    validExterior.addAll(new BitmapHitBox(hitBox).difference(c.getHitBox()));
                                 }
 
                                 //Check to see which locations in the from set are actually outside of the craft
                                 //use a modified BFS for multiple origin elements
-                                Set<MovecraftLocation> visited = new HashSet<>();
-                                Queue<MovecraftLocation> queue = new LinkedList<>(validExterior);
+                                BitmapHitBox visited = new BitmapHitBox();
+                                Queue<MovecraftLocation> queue = Lists.newLinkedList(validExterior);
                                 while (!queue.isEmpty()) {
                                     MovecraftLocation node = queue.poll();
                                     if(visited.contains(node))
@@ -234,7 +238,7 @@ public class AsyncManager extends BukkitRunnable {
                                     }
                                 }
                                 confirmed.addAll(visited);
-                                entireHitbox.addAll(CollectionUtils.filter(invertedHitBox, confirmed));
+                                entireHitbox.addAll(invertedHitBox.difference(confirmed));
 
                                 for(MovecraftLocation location : entireHitbox){
                                     if(location.getY() <= waterLine){
@@ -429,6 +433,25 @@ public class AsyncManager extends BukkitRunnable {
                 tickCoolDown = pcraft.getTickCooldown();
                 cooldownCache.put(pcraft,tickCoolDown);
             }
+
+            // Account for banking and diving in speed calculations by changing the tickCoolDown
+            if(Settings.Debug) {
+                Movecraft.getInstance().getLogger().info("TickCoolDown: " + tickCoolDown);
+            }
+            if(bankLeft || bankRight) {
+                if (!dive) {
+                    tickCoolDown *= (Math.sqrt(Math.pow(1 + pcraft.getType().getCruiseSkipBlocks(), 2) + Math.pow(pcraft.getType().getCruiseSkipBlocks() >> 1, 2)) / (1 + pcraft.getType().getCruiseSkipBlocks()));
+                } else {
+                    tickCoolDown *= (Math.sqrt(Math.pow(1 + pcraft.getType().getCruiseSkipBlocks(), 2) + Math.pow(pcraft.getType().getCruiseSkipBlocks() >> 1, 2) + 1) / (1 + pcraft.getType().getCruiseSkipBlocks()));
+                }
+            } else if(dive) {
+                tickCoolDown *= (Math.sqrt(Math.pow(1 + pcraft.getType().getCruiseSkipBlocks(), 2) + 1) / (1 + pcraft.getType().getCruiseSkipBlocks()));
+            }
+            if(Settings.Debug) {
+                Movecraft.getInstance().getLogger().info("New TickCoolDown: " + tickCoolDown);
+                Movecraft.getInstance().getLogger().info("Direction:" + (bankLeft ? " Banking Left" : "") + (bankRight ? " Banking Right" : "") + (dive ? " Diving" : ""));
+            }
+
             if (Math.abs(ticksElapsed) < tickCoolDown) {
                 continue;
             }
