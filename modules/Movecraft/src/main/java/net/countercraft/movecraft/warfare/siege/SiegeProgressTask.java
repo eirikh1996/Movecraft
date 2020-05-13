@@ -8,6 +8,8 @@ import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.warfare.events.siege.SiegeLoseEvent;
+import net.countercraft.movecraft.warfare.events.siege.SiegeWinEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -66,9 +68,11 @@ public class SiegeProgressTask extends SiegeTask {
             if (leaderShipInRegion(siegeCraft, siegeLeader)) {
                 Bukkit.getServer().broadcastMessage(String.format(I18nSupport.getInternationalisedString("Siege - Siege Success"),
                         siege.getName(), siegeLeader.getDisplayName()));
+                Bukkit.getPluginManager().callEvent(new SiegeWinEvent(siegeCraft, siege));
                 winSiege(siegeLeader);
             }
             else {
+                Bukkit.getPluginManager().callEvent(new SiegeLoseEvent(siegeCraft, siege));
                 failSiege(siegeLeader);
             }
         }

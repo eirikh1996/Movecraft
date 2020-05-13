@@ -8,6 +8,7 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.TopicPaginator;
+import net.countercraft.movecraft.warfare.events.siege.SiegeBeginEvent;
 import net.countercraft.movecraft.warfare.siege.Siege;
 import net.countercraft.movecraft.warfare.siege.SiegeManager;
 import net.countercraft.movecraft.warfare.siege.SiegeStage;
@@ -162,13 +163,18 @@ public class SiegeCommand implements CommandExecutor {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("You must be piloting a craft in the siege region!"));
             return true;
         }
-
+        final SiegeBeginEvent event = new SiegeBeginEvent(siegeCraft, siege);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return true;
+        }
 
         startSiege(siege, player, cost);
         return true;
     }
 
     private void startSiege(Siege siege, Player player, long cost) {
+
         for (String startCommand : siege.getCommandsOnStart()) {
             Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), startCommand.replaceAll("%r", siege.getAttackRegion()).replaceAll("%c", "" + siege.getCost()));
         }
