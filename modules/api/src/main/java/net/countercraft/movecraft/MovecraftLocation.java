@@ -107,12 +107,22 @@ final public class MovecraftLocation {
     public double distance(MovecraftLocation other) {
         return Math.sqrt(distanceSquared(other));
     }
+
+    /**
+     * Creates a Bukkit API <code>Location</code> representation of this <code>MovecraftLocation</code>
+     * @param world the world to be stored in the bukkit location
+     * @return the Bukkit location of this MovecraftLocation
+     */
     public Location toBukkit(World world){
         return new Location(world, this.x, this.y, this.z);
     }
 
     public static Location toBukkit(World world, MovecraftLocation location){
         return new Location(world, location.x, location.y, location.z);
+    }
+
+    public static MovecraftLocation fromBukkit(Location loc) {
+        return new MovecraftLocation(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
     }
 
     @Override

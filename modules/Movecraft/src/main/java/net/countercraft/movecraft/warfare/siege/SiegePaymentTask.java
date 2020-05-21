@@ -3,6 +3,8 @@ package net.countercraft.movecraft.warfare.siege;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.warfare.events.siege.SiegePayEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 
@@ -47,8 +49,15 @@ public class SiegePaymentTask extends SiegeTask {
         for(UUID uuid : region.getOwners().getUniqueIds()) {
             owners.add(Movecraft.getInstance().getServer().getOfflinePlayer(uuid));
         }
+        int dailyIncome = siege.getDailyIncome();
+        //call event
+        SiegePayEvent event = new SiegePayEvent(siege, owners, dailyIncome);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
 
-        int share = siege.getDailyIncome() / owners.size();
+        int share = dailyIncome / owners.size();
 
         for (OfflinePlayer player : owners) {
             Movecraft.getInstance().getEconomy().depositPlayer(player, share);
