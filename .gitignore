@@ -46,7 +46,8 @@ hs_err_pid*
 ## File-based project format:
 *.ipr
 *.iws
-
+modules/Movecraft/dependency-reduced-pom.xml
+modules/api/dependency-reduced-pom.xml
 ## Plugin-specific files:
 
 # IntelliJ
