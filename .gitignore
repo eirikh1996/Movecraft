@@ -134,7 +134,9 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-
+#Dependency reduced POMs
+modules/api/dependency-reduced-pom.xml
+modules/Movecraft/dependency-reduced-pom.xml
 ### SublimeText template
 # cache files for sublime text
 *.tmlanguage.cache
