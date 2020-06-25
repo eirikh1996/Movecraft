@@ -552,10 +552,11 @@ public class TranslationTask extends AsyncTask {
             world = Bukkit.getWorld(worldName += "_nether"); // add _nether to world name
             scaleFactor = 0.125;
         }
+        MovecraftLocation midpoint = oldHitBox.getMidPoint();
 
         // scale destination x and z based on negative most corner of portal
-        int scaleX = (int) (portalNegCorner.getBlockX() * scaleFactor);
-        int scaleZ = (int) (portalNegCorner.getBlockZ() * scaleFactor);
+        int scaleX = (int) (midpoint.getX() * scaleFactor);
+        int scaleZ = (int) (midpoint.getZ() * scaleFactor);
         Block portalBlock = null;
         //Search for portal block
         List<MovecraftChunk> chunks = ChunkManager.getChunks(oldHitBox, world, scaleX - portalNegCorner.getBlockX(), dy, scaleZ - portalNegCorner.getBlockZ());
@@ -624,7 +625,6 @@ public class TranslationTask extends AsyncTask {
             final HitBox portal = new SolidHitBox(MathUtils.bukkit2MovecraftLoc(destNegPortalLoc), MathUtils.bukkit2MovecraftLoc(destPosPortalLoc));
 
             MovecraftLocation portalMidPoint = portal.getMidPoint();
-            MovecraftLocation midpoint = oldHitBox.getMidPoint();
             if (portalX == 0) { // if portal is facing x axis
                 if (midpoint.getX() < block.getX()) { // craft is on negative side of portal
                     scaleX = portalMidPoint.getX() + (oldHitBox.getXLength()/2) + 1;
@@ -635,22 +635,22 @@ public class TranslationTask extends AsyncTask {
                 }
             } else { // if portal is facing z axis
                 if (midpoint.getZ() < block.getZ()) { // craft is on negative side of portal
-                    scaleX = portalMidPoint.getX() - (oldHitBox.getXLength()/2) - 1;
+                    scaleX = portalMidPoint.getX() + (oldHitBox.getXLength()/2) + 1;
                     scaleZ = portalMidPoint.getZ() + (oldHitBox.getZLength()/2) + 1;
                 } else { // craft is on positive side of portal
                     scaleZ = portalMidPoint.getZ() - (oldHitBox.getZLength()/2) - 1;
                     scaleX = portalMidPoint.getX() + (oldHitBox.getXLength()/2) + 1;
                 }
             }
+            dy = portalMidPoint.getY() - midpoint.getY();
         }
         Bukkit.broadcastMessage("Scale X: " + scaleX);
         Bukkit.broadcastMessage("Scale Z: " + scaleZ);
-        int scaleDx = scaleX - portalNegCorner.getBlockX();
-        int scaleDz = scaleZ - portalNegCorner.getBlockZ();
+        int scaleDx = scaleX - midpoint.getX();
+        int scaleDz = scaleZ - midpoint.getZ();
         dx += scaleDx;
         dz += scaleDz;
 
-        MovecraftLocation midpoint = oldHitBox.getMidPoint();
         if (portalX == 0) { // if portal is facing x axis
             if (midpoint.getX() < block.getX()) { // craft is on negative side of portal
                 dx += oldHitBox.getXLength() + 1;
