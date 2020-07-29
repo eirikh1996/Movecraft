@@ -100,9 +100,9 @@ public final class RemoteSign implements Listener{
                         firstError = false;
                     }
                     event.getPlayer().sendMessage(" - ".concat(tloc.toString()).concat(" : ").concat(ts.getLine(0)));
-                } else {
-                    foundLocations.add(tloc);
+                    continue;
                 }
+                foundLocations.add(tloc);
             }
         }
         if (!firstError) {
@@ -123,8 +123,8 @@ public final class RemoteSign implements Listener{
 
         for (MovecraftLocation foundLoc : foundLocations) {
             Block newBlock = event.getClickedBlock().getWorld().getBlockAt(foundLoc.getX(), foundLoc.getY(), foundLoc.getZ());
-
-            PlayerInteractEvent newEvent = new PlayerInteractEvent(event.getPlayer(), event.getAction(), event.getItem(), newBlock, event.getBlockFace());
+            Action action = invertAction((Sign) newBlock.getState(), targetText) ? invertedAction(event.getAction()) : event.getAction();
+            PlayerInteractEvent newEvent = new PlayerInteractEvent(event.getPlayer(), action, event.getItem(), newBlock, event.getBlockFace());
 
             //TODO: DON'T DO THIS
             Bukkit.getServer().getPluginManager().callEvent(newEvent);
@@ -133,10 +133,20 @@ public final class RemoteSign implements Listener{
         event.setCancelled(true);
     }
     private boolean isEqualSign(Sign test, String target) {
-        return !ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(HEADER) && ( ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(target)
-                || ChatColor.stripColor(test.getLine(1)).equalsIgnoreCase(target)
-                || ChatColor.stripColor(test.getLine(2)).equalsIgnoreCase(target)
-                || ChatColor.stripColor(test.getLine(3)).equalsIgnoreCase(target) );
+        if (ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(HEADER)) {
+            return false;
+        }
+        for (int i = 0 ; i <= 3 ; i++) {
+            String line = ChatColor.stripColor(test.getLine(i));
+            if (invertAction(test, target)) {
+                line = line.substring(1);
+            }
+            if (!line.equalsIgnoreCase(target)) {
+                continue;
+            }
+            return true;
+        }
+        return false;
     }
     private boolean isForbidden(Sign test) {
         for (int i = 0; i < 4; i++) {
@@ -145,5 +155,20 @@ public final class RemoteSign implements Listener{
                 return true;
         }
         return false;
+    }
+
+    private boolean invertAction(Sign test, String target) {
+        for (int i = 0 ; i <= 3 ; i++) {
+            String line = ChatColor.stripColor(test.getLine(i));
+            if (line.length() == 0 || !line.startsWith("!") && !line.substring(1).equalsIgnoreCase(target)) {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private Action invertedAction(Action original) {
+        return original == Action.RIGHT_CLICK_BLOCK ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK;
     }
 }
