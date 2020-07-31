@@ -18,6 +18,7 @@ public class CraftReleaseEvent extends CraftEvent{
         this.reason = reason;
     }
 
+
     @NotNull
     public Reason getReason() {
         return reason;
