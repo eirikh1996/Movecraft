@@ -530,3 +530,4 @@ public abstract class Craft {
         this.lastTeleportTime = lastTeleportTime;
     }
 }
+

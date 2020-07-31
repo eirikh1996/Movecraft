@@ -437,6 +437,8 @@ public class TranslationTask extends AsyncTask {
                 Location oldLocation = location.translate(-dx,-dy,-dz).toBukkit(craft.getW());
                 Location newLocation = location.toBukkit(world);
                 if (!oldLocation.getBlock().getType().equals(Material.AIR)) {
+                    CraftCollisionExplosionEvent e = new CraftCollisionExplosionEvent(craft, newLocation, craft.getW());
+                    Bukkit.getServer().getPluginManager().callEvent(e);
                     updates.add(new ExplosionUpdateCommand(newLocation, explosionForce));
                     if (potEffRange != 0 && !potionEffects.isEmpty())
                         updates.add(new PotionEffectsUpdateCommand(newLocation, potEffRange, potionEffects));
@@ -448,7 +450,7 @@ public class TranslationTask extends AsyncTask {
         }
 
         if(!collisionBox.isEmpty() && craft.getType().getCruiseOnPilot()){
-            CraftManager.getInstance().removeCraft(craft);
+            CraftManager.getInstance().removeCraft(craft, CraftReleaseEvent.Reason.EMPTY);
             for(MovecraftLocation location : oldHitBox){
                 Pair<Material, Object> phaseBlock = craft.getPhaseBlocks().getOrDefault(location.toBukkit(craft.getW()), new Pair<>(Material.AIR, Settings.IsLegacy ? (byte) 0 : Bukkit.createBlockData(Material.AIR)));
                 if (Settings.IsLegacy) {
@@ -713,6 +715,7 @@ public class TranslationTask extends AsyncTask {
                 dz -= oldHitBox.getZLength() + 1;
             }
         }
+
         return true;
 
     }

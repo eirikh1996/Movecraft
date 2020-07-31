@@ -321,6 +321,7 @@ public class BlockListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void explodeEvent(EntityExplodeEvent e) {
+<<<<<<< HEAD
         if (Settings.DurabilityOverride != null) {
 
             // Sorry for the following monster conditional statement, it is necessary to avoid spalling.
@@ -375,6 +376,9 @@ public class BlockListener implements Listener {
                 }
             }
         }
+=======
+        processAssault(e);
+>>>>>>> 81c040abe318506abece19752423153e69c3e9d1
     }
 
     private void processAssault(EntityExplodeEvent e){
