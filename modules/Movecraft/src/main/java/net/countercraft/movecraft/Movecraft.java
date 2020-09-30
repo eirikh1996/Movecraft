@@ -36,8 +36,6 @@ import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.mapUpdater.MapUpdateManager;
 import net.countercraft.movecraft.repair.RepairManager;
 import net.countercraft.movecraft.sign.*;
-import net.countercraft.movecraft.towny.TownyCompatManager;
-import net.countercraft.movecraft.utils.TownyUtils;
 import net.countercraft.movecraft.utils.WGCustomFlagsUtils;
 import net.countercraft.movecraft.warfare.assault.AssaultManager;
 import net.countercraft.movecraft.warfare.siege.Siege;
@@ -54,7 +52,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -270,20 +271,7 @@ public class Movecraft extends JavaPlugin {
                 }
             }
         }
-        Plugin tempTownyPlugin = getServer().getPluginManager().getPlugin("Towny");
-        if (tempTownyPlugin != null && tempTownyPlugin instanceof Towny) {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Towny Found"));
-            townyPlugin = (Towny) tempTownyPlugin;
-            TownyUtils.initTownyConfig();
-            Settings.TownyBlockMoveOnSwitchPerm = getConfig().getBoolean("TownyBlockMoveOnSwitchPerm", false);
-            Settings.TownyBlockSinkOnNoPVP = getConfig().getBoolean("TownyBlockSinkOnNoPVP", false);
-            getServer().getPluginManager().registerEvents(new TownyCompatManager(), this);
-            logger.log(Level.INFO, "Settings: TownyBlockMoveOnSwitchPerm - {0}", Settings.TownyBlockMoveOnSwitchPerm);
-            logger.log(Level.INFO, "Settings: TownyBlockSinkOnNoPVP - {0}", Settings.TownyBlockSinkOnNoPVP);
 
-        } else {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Towny Not Found"));
-        }
 
         Plugin tempEssentialsPlugin = getServer().getPluginManager().getPlugin("Essentials");
         if (tempEssentialsPlugin != null) {
