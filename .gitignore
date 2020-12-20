@@ -190,6 +190,5 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# dependency reduced POMs
-*dependency-reduced-pom.xml
 
+*dependency-reduced-pom.xml

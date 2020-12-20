@@ -2,7 +2,6 @@ package net.countercraft.movecraft.events;
 
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.craft.Craft;
-import org.bukkit.block.Block;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 

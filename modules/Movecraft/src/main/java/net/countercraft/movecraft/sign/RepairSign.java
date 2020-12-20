@@ -1,7 +1,7 @@
 package net.countercraft.movecraft.sign;
 
-import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.blocks.BaseBlock;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
@@ -11,14 +11,18 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.mapUpdater.update.UpdateCommand;
+import net.countercraft.movecraft.mapUpdater.update.WorldEdit7UpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.WorldEditUpdateCommand;
 import net.countercraft.movecraft.repair.Repair;
 import net.countercraft.movecraft.repair.RepairManager;
+import net.countercraft.movecraft.repair.RepairUtils;
+import net.countercraft.movecraft.utils.LegacyUtils;
+import net.countercraft.movecraft.utils.SignUtils;
+import net.countercraft.movecraft.utils.WorldEditUtils;
 import net.countercraft.movecraft.utils.Pair;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,24 +32,14 @@ import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 
 public class RepairSign implements Listener{
     private final String HEADER = "Repair:";
-    private static final ArrayList<Character> ILLEGAL_CHARACTERS = new ArrayList<>();//{};
     private final HashMap<UUID, Long> playerInteractTimeMap = new HashMap<>();//Players must be assigned by the UUID, or NullPointerExceptions are thrown
-    static {
-        ILLEGAL_CHARACTERS.add('/');
-        ILLEGAL_CHARACTERS.add('\\');
-        ILLEGAL_CHARACTERS.add(':');
-        ILLEGAL_CHARACTERS.add('*');
-        ILLEGAL_CHARACTERS.add('?');
-        ILLEGAL_CHARACTERS.add('\"');
-        ILLEGAL_CHARACTERS.add('<');
-        ILLEGAL_CHARACTERS.add('>');
-        ILLEGAL_CHARACTERS.add('|');
-    }
+
     @EventHandler
     public void onSignChange(SignChangeEvent event){
         if (!ChatColor.stripColor(event.getLine(0)).equalsIgnoreCase(HEADER)){
@@ -64,11 +58,11 @@ public class RepairSign implements Listener{
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         }
-        BlockState state = event.getClickedBlock().getState();
-        if (!(state instanceof Sign)) {
+        Block block = event.getClickedBlock();
+        if (!SignUtils.isSign(block)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) block.getState();
         String signText = ChatColor.stripColor(sign.getLine(0));
         if (signText == null) {
             return;
@@ -103,7 +97,7 @@ public class RepairSign implements Listener{
             return;
         }
 
-        MovecraftRepair movecraftRepair = MovecraftRepair.getInstance();
+        MovecraftRepair movecraftRepair = Movecraft.getInstance().getMovecraftRepair();
         event.setCancelled(true);
         if (movecraftRepair.saveCraftRepairState(pCraft, sign)) {
             event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Repair - State saved"));
@@ -127,18 +121,14 @@ public class RepairSign implements Listener{
             event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Repair functionality is disabled or WorldEdit was not detected"));
             return;
         }
-
         if (!event.getPlayer().hasPermission("movecraft." + pCraft.getType().getCraftName() + ".repair")){
             event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return;
         }
         String repairName = event.getPlayer().getUniqueId().toString();
-        repairName += "_";
         repairName += ChatColor.stripColor(sign.getLine(1));
-        MovecraftRepair movecraftRepair = MovecraftRepair.getInstance();
+        MovecraftRepair movecraftRepair = Movecraft.getInstance().getMovecraftRepair();
         Clipboard clipboard = movecraftRepair.loadCraftRepairStateClipboard(pCraft, sign);
-
-
         if (clipboard == null){
             p.sendMessage(I18nSupport.getInternationalisedString("Repair - State not found"));
             return;
@@ -162,7 +152,7 @@ public class RepairSign implements Listener{
                 int remainingQty = (int) longRemQty;
                 ArrayList<InventoryHolder> chests = new ArrayList<>();
                 for (MovecraftLocation loc : pCraft.getHitBox()) {
-                    Block b = pCraft.getW().getBlockAt(loc.getX(), loc.getY(), loc.getZ());
+                    Block b = pCraft.getWorld().getBlockAt(loc.getX(), loc.getY(), loc.getZ());
                     if ((b.getType() == Material.CHEST) || (b.getType() == Material.TRAPPED_CHEST)) {
                         InventoryHolder inventoryHolder = (InventoryHolder) b.getState();
                         if (inventoryHolder.getInventory().contains(type.getLeft()) && remainingQty > 0) {
@@ -234,14 +224,27 @@ public class RepairSign implements Listener{
                     Vector cLoc = locs.getRight();
                     MovecraftLocation moveLoc = new MovecraftLocation(locs.getLeft().getBlockX(), locs.getLeft().getBlockY(), locs.getLeft().getBlockZ());
                     //To avoid any issues during the repair, keep certain blocks in different linked lists
-                    BaseBlock baseBlock = clipboard.getBlock(new com.sk89q.worldedit.Vector(cLoc.getBlockX(),cLoc.getBlockY(),cLoc.getBlockZ()));
-                    Material type =  Material.getMaterial(baseBlock.getType());
-                    if (fragileBlock(type)) {
-                        WorldEditUpdateCommand updateCommand = new WorldEditUpdateCommand(baseBlock, sign.getWorld(), moveLoc, type, (byte) baseBlock.getData());
-                        updateCommandsFragileBlocks.add(updateCommand);
+                    Material type;
+                    if (Settings.IsLegacy) {
+                        BaseBlock baseBlock = RepairUtils.getBlock(clipboard, WorldEditUtils.toWeVector(cLoc));
+                        type = LegacyUtils.getMaterial(baseBlock.getType());
+                        if (fragileBlock(type)) {
+                            WorldEditUpdateCommand updateCommand = new WorldEditUpdateCommand(baseBlock, sign.getWorld(), moveLoc, LegacyUtils.getMaterial(baseBlock.getType()), (byte) baseBlock.getData());
+                            updateCommandsFragileBlocks.add(updateCommand);
+                        } else {
+                            WorldEditUpdateCommand updateCommand = new WorldEditUpdateCommand(baseBlock, sign.getWorld(), moveLoc, LegacyUtils.getMaterial(baseBlock.getType()), (byte) baseBlock.getData());
+                            updateCommands.add(updateCommand);
+                        }
                     } else {
-                        WorldEditUpdateCommand updateCommand = new WorldEditUpdateCommand(baseBlock, sign.getWorld(), moveLoc, type, (byte) baseBlock.getData());
-                        updateCommands.add(updateCommand);
+                        com.sk89q.worldedit.world.block.BaseBlock bb = clipboard.getFullBlock(WorldEditUtils.toBlockVector(cLoc));
+                        type = BukkitAdapter.adapt(bb.getBlockType());
+                        if (fragileBlock(type)){
+                            WorldEdit7UpdateCommand weUp = new WorldEdit7UpdateCommand(bb,sign.getWorld(),moveLoc, type);
+                            updateCommandsFragileBlocks.add(weUp);
+                        } else {
+                            WorldEdit7UpdateCommand weUp = new WorldEdit7UpdateCommand(bb,sign.getWorld(),moveLoc, type);
+                            updateCommands.add(weUp);
+                        }
                     }
                 }
                 if (!updateCommands.isEmpty() || !updateCommandsFragileBlocks.isEmpty()) {
@@ -285,15 +288,14 @@ public class RepairSign implements Listener{
                 || type.name().endsWith("WATER")
                 || type.name().endsWith("LAVA")
                 || type.equals(Material.LEVER)
-                || type.equals(Material.WALL_SIGN)
-                || type.equals(Material.WALL_BANNER)
+                || type.name().endsWith("WALL_SIGN")
+                || type.name().endsWith("WALL_BANNER")
                 || type.equals(Material.REDSTONE_WIRE)
                 || type.equals(Material.LADDER)
-                || type.equals(Material.BED_BLOCK)
+                || type.equals(LegacyUtils.BED_BLOCK)
                 || type.equals(Material.TRIPWIRE_HOOK)
-                || type.equals(Material.TORCH)
-                || type.equals(Material.REDSTONE_TORCH_OFF)
-                || type.equals(Material.REDSTONE_TORCH_ON);
-
+                || (Settings.IsLegacy ? type.equals(Material.TORCH)
+                || type.equals(LegacyUtils.REDSTONE_TORCH_OFF)
+                || type.equals(LegacyUtils.REDSTONE_TORCH_ON) : type.name().endsWith("WALL_TORCH"));
     }
 }

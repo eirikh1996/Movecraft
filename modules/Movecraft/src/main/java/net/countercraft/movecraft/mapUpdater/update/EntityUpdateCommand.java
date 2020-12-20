@@ -40,11 +40,11 @@ public class EntityUpdateCommand extends UpdateCommand {
     private final Sound sound;
     private final float volume;
 
-    public EntityUpdateCommand(Entity entity, double x, double y, double z, float yaw, float pitch) {
+    public EntityUpdateCommand(Entity entity, double dx, double dy, double dz, float yaw, float pitch) {
         this.entity = entity;
-        this.x = x;
-        this.y = y;
-        this.z = z;
+        this.x = dx;
+        this.y = dy;
+        this.z = dz;
         this.yaw = yaw;
         this.pitch = pitch;
         this.world = entity.getWorld();
@@ -76,29 +76,35 @@ public class EntityUpdateCommand extends UpdateCommand {
         this.volume = volume;
     }
 
-    public Entity getEntity() {
+
+    public final Entity getEntity() {
         return entity;
     }
 
     @Override
     public void doUpdate() {
-        Location playerLoc = entity.getLocation();
-        // Use bukkit teleporting API for changing worlds because it won't be smooth anyway
-        if (!(entity instanceof Player) || !playerLoc.getWorld().equals(world)) { 
-            entity.teleport(new Location(world, x + playerLoc.getX(),y + playerLoc.getY(),z + playerLoc.getZ(),yaw + playerLoc.getYaw(),pitch + playerLoc.getPitch()));
+        final Location entityLoc = entity.getVehicle() != null ? entity.getVehicle().getLocation() : entity.getLocation();
+        final Location destLoc = new Location(world, entityLoc.getX() + x, entityLoc.getY() + y, entityLoc.getZ() + z,yaw + entityLoc.getYaw(),pitch + entityLoc.getPitch());
+        if (!entity.getWorld().equals(world)) {
+            entity.teleport(destLoc);
+            if (sound != null) {
+                ((Player) entity).playSound(entityLoc, sound, volume, 1.0f);
+            }
+            return;
+        } else if (!(entity instanceof Player)) {
+            TeleportUtils.teleportEntity(entity, destLoc);
             return;
         }
+        Location playerLoc = entity.getLocation();
+
         //Movecraft.getInstance().getWorldHandler().addPlayerLocation((Player) entity,x,y,z,yaw,pitch);
         Location location = new Location(world, playerLoc.getX() + x, playerLoc.getY() + y, playerLoc.getZ() + z);
         TeleportUtils.teleport((Player) entity, location, yaw);
-        if (sound != null) {
-            ((Player) entity).playSound(location, sound, volume, 1.0f);
-        }
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(entity.getUniqueId(), x, y, z, pitch, yaw);
+        return Objects.hash(entity, x, y, z, pitch, yaw);
     }
 
     @Override

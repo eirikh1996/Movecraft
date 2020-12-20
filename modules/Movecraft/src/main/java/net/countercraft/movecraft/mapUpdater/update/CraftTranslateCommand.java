@@ -9,14 +9,15 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.events.SignTranslateEvent;
+import net.countercraft.movecraft.mapUpdater.MapUpdateManager;
 import net.countercraft.movecraft.utils.*;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -26,17 +27,23 @@ public class CraftTranslateCommand extends UpdateCommand {
     @NotNull private final Craft craft;
     @NotNull private final MovecraftLocation displacement;
     @NotNull private final World world;
+    @Nullable private final Sound sound;
+    private final float volume;
 
     public CraftTranslateCommand(@NotNull Craft craft, @NotNull MovecraftLocation displacement){
         this.craft = craft;
         this.displacement = displacement;
         this.world = craft.getW();
+        sound = null;
+        volume = 0f;
     }
     
-    public CraftTranslateCommand(@NotNull Craft craft, @NotNull MovecraftLocation displacement, @NotNull World world){
+    public CraftTranslateCommand(@NotNull Craft craft, @NotNull MovecraftLocation displacement, @NotNull World world, @Nullable Sound sound, float volume){
         this.craft = craft;
         this.displacement = displacement;
         this.world = world;
+        this.sound = sound;
+        this.volume = volume;
     }
 
 
@@ -53,18 +60,79 @@ public class CraftTranslateCommand extends UpdateCommand {
         long time = System.nanoTime();
         World oldWorld = craft.getW();
         final Set<Material> passthroughBlocks = new HashSet<>(craft.getType().getPassthroughBlocks());
+        final Set<UpdateCommand> toMove = new HashSet<>();
         if(craft.getSinking()){
-            passthroughBlocks.add(Material.STATIONARY_WATER);
-            passthroughBlocks.add(Material.WATER);
-            passthroughBlocks.add(Material.LEAVES);
-            passthroughBlocks.add(Material.LEAVES_2);
-            passthroughBlocks.add(Material.LONG_GRASS);
-            passthroughBlocks.add(Material.DOUBLE_PLANT);
+            passthroughBlocks.add(Material.WATER);//Same in the 1.13 API, but other values are different
+            if (Settings.IsLegacy){ //use pre-1.13 values if running on 1.12.2 or lower
+                passthroughBlocks.add(LegacyUtils.STATIONARY_WATER);
+                passthroughBlocks.add(LegacyUtils.LEAVES);
+                passthroughBlocks.add(LegacyUtils.LEAVES_2);
+                passthroughBlocks.add(LegacyUtils.LONG_GRASS);
+                passthroughBlocks.add(LegacyUtils.DOUBLE_PLANT);
+            } else {//otherwise, use 1.13+ types
+                //Leaves
+                passthroughBlocks.add(Material.ACACIA_LEAVES);
+                passthroughBlocks.add(Material.BIRCH_LEAVES);
+                passthroughBlocks.add(Material.DARK_OAK_LEAVES);
+                passthroughBlocks.add(Material.JUNGLE_LEAVES);
+                passthroughBlocks.add(Material.OAK_LEAVES);
+                passthroughBlocks.add(Material.SPRUCE_LEAVES);
+                //Grass
+                passthroughBlocks.add(Material.GRASS);
+                //Double plants
+                passthroughBlocks.add(Material.ROSE_BUSH);
+                passthroughBlocks.add(Material.SUNFLOWER);
+                passthroughBlocks.add(Material.LILAC);
+                passthroughBlocks.add(Material.PEONY);
+                passthroughBlocks.add(Material.KELP);
+                passthroughBlocks.add(Material.KELP_PLANT);
+                passthroughBlocks.add(Material.TALL_SEAGRASS);
+                passthroughBlocks.add(Material.SEA_PICKLE);
+                passthroughBlocks.add(Material.SEAGRASS);
+
+                passthroughBlocks.add(Material.BUBBLE_COLUMN);
+
+            }
+        } else if (craft.getType().getMoveEntities() && !craft.getSinking()){
+            final Location midpoint = craft.getHitBox().getMidPoint().subtract(displacement).toBukkit(craft.getWorld()).add(.5,.5,.5);
+            final Collection<Entity> entities = craft.getWorld().getNearbyEntities(midpoint, craft.getHitBox().getXLength() / 2.0 + 1, craft.getHitBox().getYLength() / 2.0 + 2, craft.getHitBox().getZLength() / 2.0 + 1);
+            Entity vehicle;
+            Entity playerVehicle = null;
+            for (Entity entity : entities){
+                vehicle = entity.getVehicle();
+                if (entity.getType() == EntityType.PLAYER) {
+                    //Only teleport one player if more players ride the same vehicle
+                    if (playerVehicle != null && playerVehicle.getPassengers().contains(entity)) {
+                        continue;
+                    }
+                    playerVehicle = entity.getVehicle();
+                    //If player has a vehicle and craft should only move players, eject its passengers
+                    if (playerVehicle != null && craft.getType().getOnlyMovePlayers()) {
+                        playerVehicle.eject();
+                    }
+                    toMove.add(new EntityUpdateCommand(entity, displacement.getX(), displacement.getY(), displacement.getZ(), 0, 0, world, sound, volume));
+                } else if (!craft.getType().getOnlyMovePlayers() || entity.getType() == EntityType.PRIMED_TNT) {
+                    boolean isPlayerVehicle = false;
+                    for (Entity pass : entity.getPassengers()) {
+                        if (pass.getType() != EntityType.PLAYER) {
+                            continue;
+                        }
+                        isPlayerVehicle = true;
+                        break;
+                    }
+                    if (vehicle != null && vehicle.getPassengers().contains(entity) || entity == playerVehicle || isPlayerVehicle) {
+                        continue;
+                    }
+                    toMove.add(new EntityUpdateCommand(entity, displacement.getX(), displacement.getY(), displacement.getZ(), 0, 0, world));
+                }
+            }
         }
+        MutableHitBox interior = new BitmapHitBox();
+        MutableHitBox exterior = new BitmapHitBox();
         if(passthroughBlocks.isEmpty()){
             //translate the craft
             Movecraft.getInstance().getWorldHandler().translateCraft(craft,displacement,world);
-            craft.setW(world);
+            craft.setWorld(world);
             //trigger sign events
             this.sendSignEvents();
         } else {
@@ -77,7 +145,7 @@ public class CraftTranslateCommand extends UpdateCommand {
             for (MovecraftLocation location : to) {
                 Block b = location.toBukkit(world).getBlock();
                 Material material = b.getType();
-                byte data = b.getData();
+                Object data = Settings.IsLegacy ? b.getData() : b.getBlockData();
                 if (passthroughBlocks.contains(material)) {
                     craft.getPhaseBlocks().put(location.toBukkit(world), new Pair<>(material, data));
                 }
@@ -134,7 +202,7 @@ public class CraftTranslateCommand extends UpdateCommand {
             for (MovecraftLocation location : invertedHitBox.difference(confirmed)) {
                 Block b = location.toBukkit(world).getBlock();
                 Material material = b.getType();
-                byte data = b.getData();
+                Object data = Settings.IsLegacy ? b.getData() : b.getBlockData();
                 if (!passthroughBlocks.contains(material)) {
                     continue;
                 }
@@ -142,10 +210,9 @@ public class CraftTranslateCommand extends UpdateCommand {
             }
             //translate the craft
             handler.translateCraft(craft, displacement,world);
-            craft.setW(world);
+            craft.setWorld(world);
             //trigger sign events
             this.sendSignEvents();
-
 
             for (MovecraftLocation l : failed){
                 MovecraftLocation orig = l.subtract(displacement);
@@ -156,7 +223,6 @@ public class CraftTranslateCommand extends UpdateCommand {
 
             }
 
-
             //place confirmed blocks if they have been un-phased
             for (MovecraftLocation location : confirmed) {
                 Location bukkit = location.toBukkit(craft.getW());
@@ -166,7 +232,7 @@ public class CraftTranslateCommand extends UpdateCommand {
                 //Do not place if it is at a collapsed HitBox location
                 if (!craft.getCollapsedHitBox().isEmpty() && craft.getCollapsedHitBox().contains(location))
                     continue;
-                Pair<Material, Byte> phaseBlock = craft.getPhaseBlocks().remove(bukkit);
+                Pair<Material, Object> phaseBlock = craft.getPhaseBlocks().remove(bukkit);
                 handler.setBlockFast(bukkit, phaseBlock.getLeft(), phaseBlock.getRight());
                 craft.getPhaseBlocks().remove(bukkit);
             }
@@ -174,7 +240,7 @@ public class CraftTranslateCommand extends UpdateCommand {
             for(MovecraftLocation location : originalLocations){
                 Location bukkit = location.toBukkit(oldWorld);
                 if(!craft.getHitBox().contains(location) && craft.getPhaseBlocks().containsKey(bukkit)){
-                    Pair<Material, Byte> phaseBlock = craft.getPhaseBlocks().remove(bukkit);
+                    Pair<Material, Object> phaseBlock = craft.getPhaseBlocks().remove(bukkit);
                     handler.setBlockFast(bukkit, phaseBlock.getLeft(), phaseBlock.getRight());
                 }
             }
@@ -183,16 +249,26 @@ public class CraftTranslateCommand extends UpdateCommand {
                 Location bukkit = location.toBukkit(oldWorld);
                 Block b = bukkit.getBlock();
                 Material material = b.getType();
-                byte data = b.getData();
+                Object data = Settings.IsLegacy ? b.getData() : b.getBlockData();
                 if (passthroughBlocks.contains(material)) {
                     craft.getPhaseBlocks().put(bukkit, new Pair<>(material, data));
                     handler.setBlockFast(bukkit, Material.AIR, (byte) 0);
 
                 }
             }
+            interior.addAll(failed);
+
         }
-        if (!craft.isNotProcessing())
+        MapUpdateManager.getInstance().scheduleUpdates(toMove);
+        if (!Settings.IsLegacy) {
+            WaterlogUtils.waterlogBlocksOnCraft(craft, interior);
+        }
+        if (!craft.isNotProcessing()) {
             craft.setProcessing(false);
+        }
+        if (craft.isTranslating()) {
+            craft.setTranslating(false);
+        }
         time = System.nanoTime() - time;
         if(Settings.Debug)
             logger.info("Total time: " + (time / 1e6) + " milliseconds. Moving with cooldown of " + craft.getTickCooldown() + ". Speed of: " + String.format("%.2f", craft.getSpeed()) + ". Displacement of: " + displacement);
@@ -205,9 +281,8 @@ public class CraftTranslateCommand extends UpdateCommand {
     private void sendSignEvents(){
         Map<String[], List<MovecraftLocation>> signs = new HashMap<>();
         for (MovecraftLocation location : craft.getHitBox()) {
-            Block block = location.toBukkit(craft.getW()).getBlock();
-            Material type = block.getType();
-            if (type == Material.WALL_SIGN || type == Material.SIGN_POST) {
+            Block block = location.toBukkit(craft.getWorld()).getBlock();
+            if (SignUtils.isSign(block)) {
                 Sign sign = (Sign) block.getState();
                 if(!signs.containsKey(sign.getLines()))
                     signs.put(sign.getLines(), new ArrayList<>());
@@ -217,8 +292,8 @@ public class CraftTranslateCommand extends UpdateCommand {
         for(Map.Entry<String[], List<MovecraftLocation>> entry : signs.entrySet()){
             Bukkit.getServer().getPluginManager().callEvent(new SignTranslateEvent(craft, entry.getKey(), entry.getValue()));
             for(MovecraftLocation loc : entry.getValue()){
-                Block block = loc.toBukkit(craft.getW()).getBlock();
-                if (block.getType() != Material.WALL_SIGN && block.getType() != Material.SIGN_POST) {
+                Block block = loc.toBukkit(craft.getWorld()).getBlock();
+                if (!(block.getState() instanceof Sign)) {
                     continue;
                 }
                 Sign sign = (Sign) block.getState();

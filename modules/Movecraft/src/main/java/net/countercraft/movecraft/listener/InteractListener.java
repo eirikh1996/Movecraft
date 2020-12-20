@@ -17,38 +17,54 @@
 
 package net.countercraft.movecraft.listener;
 
-import net.countercraft.movecraft.utils.MathUtils;
-import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.LegacyUtils;
+import net.countercraft.movecraft.utils.MathUtils;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.material.Button;
+import org.bukkit.util.Vector;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.lang.Math.abs;
+import static java.lang.Math.rint;
+
 public final class InteractListener implements Listener {
     private static final Map<Player, Long> timeMap = new HashMap<>();
-
+    final Material[] buttons = !Settings.IsLegacy ? new Material[] {Material.STONE_BUTTON, Material.BIRCH_BUTTON, Material.ACACIA_BUTTON, Material.DARK_OAK_BUTTON, Material.JUNGLE_BUTTON, Material.OAK_BUTTON, Material.SPRUCE_BUTTON}: new Material[]{};
     @EventHandler
     public final void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         }
         Material m = event.getClickedBlock().getType();
-        if (!m.equals(Material.WOOD_BUTTON) && !m.equals(Material.STONE_BUTTON)) {
+        if (Settings.IsLegacy ? (!m.equals(LegacyUtils.WOOD_BUTTON) && !m.equals(Material.STONE_BUTTON)) : Arrays.binarySearch(buttons, m) < 0) {
             return;
         }
         if (event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         } // if they left click a button which is pressed, unpress it
-        if (event.getClickedBlock().getData() >= 8) {
-            event.getClickedBlock().setData((byte) (event.getClickedBlock().getData() - 8));
+        if (Settings.IsLegacy) {
+            if (event.getClickedBlock().getData() >= 8) {
+                LegacyUtils.setData(event.getClickedBlock(), (byte) (event.getClickedBlock().getData() - 8));
+            }
+        } else {
+            if (event.getClickedBlock().getState() instanceof Button){
+                Button button = (Button) event.getClickedBlock().getState();
+                if (button.isPowered()){
+                    button.setPowered(false);
+                }
+            }
         }
     }
 
@@ -59,33 +75,41 @@ public final class InteractListener implements Listener {
         // if not in command of craft, don't process pilot tool clicks
         if (c == null)
             return;
-
-/*		if( c.getCannonDirector()==event.getPlayer() ) // if the player is the cannon director, don't let them move the ship
-			return;
-
-		if( c.getAADirector()==event.getPlayer() ) // if the player is the cannon director, don't let them move the ship
-			return;
-*/
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Craft craft = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());
+            final Player player = event.getPlayer();
+            Craft craft = CraftManager.getInstance().getCraftByPlayer(player);
 
-            if (event.getItem() == null || event.getItem().getTypeId() != Settings.PilotTool) {
+            if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
                 return;
             }
             event.setCancelled(true);
             if (craft == null) {
                 return;
             }
-            Long time = timeMap.get(event.getPlayer());
+            int currentGear = craft.getCurrentGear();
+            if (player.isSneaking() && !craft.getPilotLocked()) {
+                final int gearShifts = craft.getType().getGearShifts();
+                if (gearShifts == 1) {
+                    player.sendMessage(I18nSupport.getInternationalisedString("Gearshift - Disabled for craft type"));
+                    return;
+                }
+                currentGear++;
+                if (currentGear > gearShifts)
+                    currentGear = 1;
+                player.sendMessage(I18nSupport.getInternationalisedString("Gearshift - Gear changed") + " " + currentGear + " / " + gearShifts);
+                craft.setCurrentGear(currentGear);
+                return;
+            }
+            Long time = timeMap.get(player);
             if (time != null) {
                 long ticksElapsed = (System.currentTimeMillis() - time) / 50;
 
                 // if the craft should go slower underwater, make time
                 // pass more slowly there
-                if (craft.getType().getHalfSpeedUnderwater() && craft.getHitBox().getMinY() < craft.getW().getSeaLevel())
+                if (craft.getType().getHalfSpeedUnderwater() && craft.getHitBox().getMinY() < craft.getWorld().getSeaLevel())
                     ticksElapsed = ticksElapsed >> 1;
 
-                if (Math.abs(ticksElapsed) < craft.getType().getTickCooldown(craft.getW())) {
+                if (abs(ticksElapsed) < craft.getType().getTickCooldown(craft.getW())) {
                     return;
                 }
             }
@@ -105,30 +129,23 @@ public final class InteractListener implements Listener {
                 int DY = 1;
                 if (event.getPlayer().isSneaking())
                     DY = -1;
-
                 craft.translate(0, DY, 0);
                 timeMap.put(event.getPlayer(), System.currentTimeMillis());
                 craft.setLastCruiseUpdate(System.currentTimeMillis());
                 return;
             }
             // Player is onboard craft and right clicking
-            float rotation = (float) Math.PI * event.getPlayer().getLocation().getYaw() / 180f;
 
-            float nx = -(float) Math.sin(rotation);
-            float nz = (float) Math.cos(rotation);
-
-            int dx = (Math.abs(nx) >= 0.5 ? 1 : 0) * (int) Math.signum(nx);
-            int dz = (Math.abs(nz) > 0.5 ? 1 : 0) * (int) Math.signum(nz);
-            int dy;
-
+            final Vector direction = player.getLocation().getDirection();
             float p = event.getPlayer().getLocation().getPitch();
 
-            dy = -(Math.abs(p) >= 25 ? 1 : 0) * (int) Math.signum(p);
+            direction.setY(-(Math.abs(p) >= 25 ? 1 : 0) * (int) Math.signum(p));
+            direction.normalize();
+            direction.multiply(currentGear);
 
-            if (Math.abs(event.getPlayer().getLocation().getPitch()) >= 75) {
-                dx = 0;
-                dz = 0;
-            }
+            int dx = (int) rint(direction.getX());
+            int dz = (int) rint(direction.getZ());
+            int dy = (int) rint(direction.getY());
 
             craft.translate(dx, dy, dz);
             timeMap.put(event.getPlayer(), System.currentTimeMillis());
@@ -136,7 +153,10 @@ public final class InteractListener implements Listener {
             return;
         }
         if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            if (event.getItem() == null || event.getItem().getTypeId() != Settings.PilotTool) {
+            if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
+                return;
+            }
+            if (Settings.RequireSneakingForDirectControl && !event.getPlayer().isSneaking()) {
                 return;
             }
             Craft craft = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());

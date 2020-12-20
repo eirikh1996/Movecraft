@@ -20,21 +20,20 @@ package net.countercraft.movecraft.localisation;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.config.Settings;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Level;
 
-public class I18nSupport {
+public final class I18nSupport {
     private static Properties languageFile;
-
+    private static boolean hasOtherScript = false;
+    private static final String[] otherScriptLangs = {"el", "ar", "ur", "he", "zh", "jp"};
+    private static Movecraft movecraft = Movecraft.getInstance();
     public static void init() {
         languageFile = new Properties();
 
-        File localisationDirectory = new File(Movecraft.getInstance().getDataFolder().getAbsolutePath() + "/localisation");
+        File localisationDirectory = new File(movecraft.getDataFolder().getAbsolutePath() + "/localisation");
 
         if (!localisationDirectory.exists()) {
             localisationDirectory.mkdirs();
@@ -47,9 +46,10 @@ public class I18nSupport {
             e.printStackTrace();
         }
 
+
         if (is == null) {
-            Movecraft.getInstance().getLogger().log(Level.SEVERE, "Critical Error in Localisation System");
-            Movecraft.getInstance().getServer().shutdown();
+            movecraft.getLogger().log(Level.SEVERE, "Critical Error in Localisation System");
+            movecraft.getServer().shutdown();
             return;
         }
 
@@ -59,12 +59,54 @@ public class I18nSupport {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        InputStream resource = Movecraft.getInstance().getResource("localisation/movecraftlang" + "_" + Settings.LOCALE + ".properties");
+        Properties jarLangFile = new Properties();
+        if (resource == null) {
+            return;
+        }
+        try {
+            jarLangFile.load(resource);
+            resource.close();
+        } catch (IOException e) {
+            if (Settings.Debug)
+                e.printStackTrace();
+            return;
+        }
+        boolean updated = false;
+        for (Object key : jarLangFile.keySet()) {
+            if (languageFile.containsKey(key)) {
+                continue;
+            }
+            languageFile.setProperty((String) key, (String) jarLangFile.get(key));
+            updated = true;
+        }
+        if (!updated)
+            return;
+        try {
+            OutputStream output = new FileOutputStream(localisationDirectory.getAbsolutePath() + "/movecraftlang" + "_" + Settings.LOCALE + ".properties");
+            languageFile.store(output, null);
+            output.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
 
     }
-
+    public static boolean writtenFromRightToLeft(){
+        return (boolean) languageFile.getOrDefault("writtenFromRightToLeft", false);
+    }
     public static String getInternationalisedString(String key) {
-        String ret = languageFile.getProperty(key);
+        String ret;
+        if (Arrays.binarySearch(otherScriptLangs, Settings.LOCALE) >= 0){
+            try {
+                ret = new String(languageFile.getProperty(key).getBytes(),"UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                ret = languageFile.getProperty(key);
+                e.printStackTrace();
+            }
+        } else {
+            ret = languageFile.getProperty(key);
+        }
         if (ret != null) {
             return ret;
         } else {

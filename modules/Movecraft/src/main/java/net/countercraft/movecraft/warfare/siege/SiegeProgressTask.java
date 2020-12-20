@@ -1,5 +1,7 @@
 package net.countercraft.movecraft.warfare.siege;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.domains.DefaultDomain;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import net.countercraft.movecraft.Movecraft;
@@ -8,8 +10,10 @@ import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.LegacyUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
+import org.bukkit.boss.BarColor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,16 +28,22 @@ public class SiegeProgressTask extends SiegeTask {
 
     //every 20 ticks = 1 second
     public void run() {
+        addPlayersToProgressBar();
         int timeLeft = (int) (siege.getDuration() - ((System.currentTimeMillis() - siege.getStartTime()) / 1000));
+        int timePassed = (siege.getDuration() - siege.getDelayBeforeStart()) - timeLeft;
+        double progress = (double) timePassed / ((double) siege.getDuration() - siege.getDelayBeforeStart());
+        siege.getProgressBar().setProgress(Math.min(progress, 1.0));
+        @NotNull Player siegeLeader = Movecraft.getInstance().getServer().getPlayer(siege.getPlayerUUID());
+        @Nullable Craft siegeCraft = CraftManager.getInstance().getCraftByPlayer(siegeLeader);
+        BarColor bColor = leaderPilotingShip(siegeCraft) && leaderShipInRegion(siegeCraft, siegeLeader) ? BarColor.GREEN : BarColor.RED;
+        siege.getProgressBar().setColor(bColor);
         if (!siege.isJustCommenced() && timeLeft % Settings.SiegeTaskSeconds != 0) {
             return;
         }
         siege.setJustCommenced(false);
-        @NotNull Player siegeLeader = Movecraft.getInstance().getServer().getPlayer(siege.getPlayerUUID());
-        @Nullable Craft siegeCraft = CraftManager.getInstance().getCraftByPlayer(siegeLeader);
+
 
         if (timeLeft > 10) {
-
             if (leaderPilotingShip(siegeCraft) && leaderShipInRegion(siegeCraft, siegeLeader)) {
                 MovecraftLocation mid = siegeCraft.getHitBox().getMidPoint();
                 Bukkit.getServer().broadcastMessage(String.format(
@@ -74,11 +84,19 @@ public class SiegeProgressTask extends SiegeTask {
         else {
             failSiege(siegeLeader);
         }
+        siege.getProgressBar().setVisible(false);
+        siege.getProgressBar().setColor(BarColor.BLUE);
         siege.setStage(SiegeStage.INACTIVE);
     }
 
-    private void winSiege(@NotNull Player siegeLeader) {
-        ProtectedRegion controlRegion = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(siegeLeader.getWorld()).getRegion(siege.getCaptureRegion());
+
+    private void winSiege(Player siegeLeader) {
+        ProtectedRegion controlRegion;
+        if (Settings.IsLegacy){
+            controlRegion = LegacyUtils.getRegionManager(Movecraft.getInstance().getWorldGuardPlugin(), siegeLeader.getWorld()).getRegion(siege.getCaptureRegion());
+        } else {
+            controlRegion = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(siegeLeader.getWorld())).getRegion(siege.getCaptureRegion());
+        }
         DefaultDomain newOwner = new DefaultDomain();
         newOwner.addPlayer(siege.getPlayerUUID());
         controlRegion.setOwners(newOwner);
@@ -124,7 +142,12 @@ public class SiegeProgressTask extends SiegeTask {
 
     private boolean leaderShipInRegion(@NotNull Craft siegeCraft, @NotNull Player siegeLeader) {
         MovecraftLocation mid = siegeCraft.getHitBox().getMidPoint();
-        ProtectedRegion r = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(siegeLeader.getWorld()).getRegion(siege.getAttackRegion());
+        ProtectedRegion r;
+        if (Settings.IsLegacy){
+            r = LegacyUtils.getRegionManager(Movecraft.getInstance().getWorldGuardPlugin(), siegeLeader.getWorld()).getRegion(siege.getAttackRegion());
+        } else {
+            r = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(siegeLeader.getWorld())).getRegion(siege.getAttackRegion());
+        }
         return r.contains(mid.getX(), mid.getY(), mid.getZ());
     }
 }

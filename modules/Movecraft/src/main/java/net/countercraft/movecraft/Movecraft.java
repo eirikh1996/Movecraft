@@ -23,7 +23,6 @@ import com.mewin.WGCustomFlags.WGCustomFlagsPlugin;
 import com.palmergames.bukkit.towny.Towny;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.flags.StateFlag;
 import net.countercraft.movecraft.async.AsyncManager;
 import net.countercraft.movecraft.commands.*;
 import net.countercraft.movecraft.config.Settings;
@@ -37,32 +36,30 @@ import net.countercraft.movecraft.mapUpdater.MapUpdateManager;
 import net.countercraft.movecraft.repair.RepairManager;
 import net.countercraft.movecraft.sign.*;
 import net.countercraft.movecraft.towny.TownyCompatManager;
+import net.countercraft.movecraft.utils.LegacyUtils;
 import net.countercraft.movecraft.utils.TownyUtils;
-import net.countercraft.movecraft.utils.WGCustomFlagsUtils;
+import net.countercraft.movecraft.utils.UpdateManager;
+import net.countercraft.movecraft.utils.WorldguardUtils;
 import net.countercraft.movecraft.warfare.assault.AssaultManager;
 import net.countercraft.movecraft.warfare.siege.Siege;
 import net.countercraft.movecraft.warfare.siege.SiegeManager;
 import net.countercraft.movecraft.worldguard.WorldGuardCompatManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Movecraft extends JavaPlugin {
-    public static StateFlag FLAG_PILOT = null; //new StateFlag("movecraft-pilot", true);
-    public static StateFlag FLAG_MOVE = null; //new StateFlag("movecraft-move", true);
-    public static StateFlag FLAG_ROTATE = null; //new StateFlag("movecraft-rotate", true);
-    public static StateFlag FLAG_SINK = null; //new StateFlag("movecraft-sink", true);
+
     private static Movecraft instance;
     private static WorldGuardPlugin worldGuardPlugin;
     private static WorldEditPlugin worldEditPlugin;
@@ -71,13 +68,11 @@ public class Movecraft extends JavaPlugin {
     private static Cannons cannonsPlugin = null;
     private static Towny townyPlugin = null;
     private static Essentials essentialsPlugin = null;
-    /*public HashMap<MovecraftLocation, Long> blockFadeTimeMap = new HashMap<>();
-    public HashMap<MovecraftLocation, Integer> blockFadeTypeMap = new HashMap<>();
-    public HashMap<MovecraftLocation, Boolean> blockFadeWaterMap = new HashMap<>();
-    public HashMap<MovecraftLocation, World> blockFadeWorldMap = new HashMap<>();*/
     private Logger logger;
     private boolean shuttingDown;
+    private boolean startup = true;
     private WorldHandler worldHandler;
+    private MovecraftRepair movecraftRepair;
 
 
     private AsyncManager asyncManager;
@@ -95,44 +90,76 @@ public class Movecraft extends JavaPlugin {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void onEnable() {
+        saveLocaleFiles();
+        String packageName = this.getServer().getClass().getPackage().getName();
+        String version = packageName.substring(packageName.lastIndexOf('.') + 1);
         // Read in config
-        this.saveDefaultConfig();
+        if (!Settings.IsLegacy) {
+            this.saveDefaultConfig();
+        } else {
+            saveLegacyConfig();
+        }
         try {
             Class.forName("com.destroystokyo.paper.Title");
             Settings.IsPaper = true;
         }catch (Exception e){
             Settings.IsPaper=false;
         }
+        if (!Settings.IsPaper){
+            logger.warning("======== Movecraft === Use Paper =======");
+            logger.warning("Your server version: " + getServer().getVersion());
+            logger.warning("You may experience performance issues");
+            logger.warning("with this server platform.");
+            logger.warning("");
+            logger.warning("It is recommended you use Paper");
+            logger.warning("for better performance.");
+            logger.warning("Download at papermc.io/downloads");
+            logger.warning("======== Movecraft === Use Paper =======");
+        }
+        try {
+            Class.forName("com.boydti.fawe.Fawe");
+            if (!Settings.IsLegacy){
+                logger.warning("======= Movecraft === FAWE detected ========");
+                logger.warning("FAWE has been detected on the server");
+                logger.warning("the 1.13+ version of FAWE has critical");
+                logger.warning("bugs that will break the repair system");
+                logger.warning("Therefore, use WorldEdit instead or disable");
+                logger.warning("repair functionality and assault");
+                logger.warning("======= Movecraft === FAWE detected ========");
+            }
+        } catch (ClassNotFoundException e) {
+
+        }
 
 
         Settings.LOCALE = getConfig().getString("Locale");
+        I18nSupport.init();
         Settings.RestrictSiBsToRegions = getConfig().getBoolean("RestrictSiBsToRegions", false);
         Settings.Debug = getConfig().getBoolean("Debug", false);
         Settings.DisableSpillProtection = getConfig().getBoolean("DisableSpillProtection", false);
-        
-        // moved localisation initialisation to the start so that startup messages can be localised
-        String[] localisations = {"en", "cz", "nl"};
-        for (String s : localisations) {
-            if (!new File(getDataFolder()
-                    + "/localisation/movecraftlang_" + s + ".properties").exists()) {
-                this.saveResource("localisation/movecraftlang_" + s + ".properties", false);
+        // if the PilotTool is specified in the config_legacy.yml file, use it
+        Object pt = getConfig().get("PilotTool");
+        final Material pilotTool;
+        if (pt instanceof Integer){
+            int toolID = (int) pt;
+            if (!Settings.IsLegacy) {
+                throw new IllegalArgumentException("Numerical block IDs are not supported by this version");
             }
-        }
-
-        I18nSupport.init();
-        
-        
-        // if the PilotTool is specified in the config.yml file, use it
-        if (getConfig().getInt("PilotTool") != 0) {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Recognized Pilot Tool")
-                    + getConfig().getInt("PilotTool"));
-            Settings.PilotTool = getConfig().getInt("PilotTool");
+            pilotTool = LegacyUtils.getMaterial(toolID);
+        } else if (pt instanceof String){
+            String str = (String) pt;
+            str = str.toUpperCase();
+            pilotTool = Material.getMaterial(str);
         } else {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - No Pilot Tool"));
+            pilotTool = null;
         }
-        String packageName = this.getServer().getClass().getPackage().getName();
-        String version = packageName.substring(packageName.lastIndexOf('.') + 1);
+        Settings.PilotTool = pilotTool != null ? pilotTool : Material.STICK;
+        logger.info(pilotTool != null ?I18nSupport.getInternationalisedString("Startup - Recognized Pilot Tool")
+                + pilotTool.name().toLowerCase() :
+                I18nSupport.getInternationalisedString("Startup - No Pilot Tool"));
+        //Switch to interfaces
         try {
             final Class<?> clazz = Class.forName("net.countercraft.movecraft.compat." + version + ".IWorldHandler");
             // Check if we have a NMSHandler class at that location.
@@ -147,7 +174,6 @@ public class Movecraft extends JavaPlugin {
         }
         this.getLogger().info(I18nSupport.getInternationalisedString("Startup - Loading Support") + " " + version);
 
-
         Settings.SinkCheckTicks = getConfig().getDouble("SinkCheckTicks", 100.0);
         Settings.ManOverboardTimeout = getConfig().getInt("ManOverboardTimeout", 30);
         Settings.ManOverboardDistSquared = Math.pow(getConfig().getDouble("ManOverboardDistance", 1000), 2);
@@ -160,9 +186,11 @@ public class Movecraft extends JavaPlugin {
         Settings.SetHomeToCrewSign = getConfig().getBoolean("SetHomeToCrewSign", true);
         Settings.MaxRemoteSigns = getConfig().getInt("MaxRemoteSigns", -1);
         Settings.CraftsUseNetherPortals = getConfig().getBoolean("CraftsUseNetherPortals", false);
+        Settings.CheckForUpdates = getConfig().getBoolean("CheckForUpdates", true);
         Settings.RequireCreatePerm = getConfig().getBoolean("RequireCreatePerm", false);
         Settings.RequireNamePerm = getConfig().getBoolean("RequireNamePerm", true);
         Settings.FadeWrecksAfter = getConfig().getInt("FadeWrecksAfter", 0);
+        Settings.RequireSneakingForDirectControl = getConfig().getBoolean("RequireSneakingForDirectControl", false);
         Settings.FadeTickCooldown = getConfig().getInt("FadeTickCooldown", 20);
         Settings.FadePercentageOfWreckPerCycle = getConfig().getDouble("FadePercentageOfWreckPerCycle", 10.0);
         if (getConfig().contains("ExtraFadeTimePerBlock")) {
@@ -170,14 +198,13 @@ public class Movecraft extends JavaPlugin {
             for (String str : temp.keySet()) {
                 Material type;
                 try {
-                    type = Material.getMaterial(Integer.parseInt(str));
+                    type = LegacyUtils.getMaterial(Integer.parseInt(str));
                 } catch (NumberFormatException e) {
                     type = Material.getMaterial(str);
                 }
                 Settings.ExtraFadeTimePerBlock.put(type, (Integer) temp.get(str));
             }
         }
-
         Settings.AssaultEnable = getConfig().getBoolean("AssaultEnable", false);
         Settings.AssaultDamagesCapPercent = getConfig().getDouble("AssaultDamagesCapPercent", 1.0);
         Settings.AssaultCooldownHours = getConfig().getInt("AssaultCooldownHours", 24);
@@ -188,30 +215,51 @@ public class Movecraft extends JavaPlugin {
         Settings.AssaultRequiredDefendersOnline = getConfig().getInt("AssaultRequiredDefendersOnline", 2);
         Settings.AssaultRequiredOwnersOnline = getConfig().getInt("AssaultRequiredOwnersOnline", 1);
         Settings.AssaultMaxBalance = getConfig().getDouble("AssaultMaxBalance", 5000000);
-        Settings.AssaultOwnerWeightPercent = getConfig().getDouble("AssaultOwnerWeightPercent", 1.0);
-        Settings.AssaultMemberWeightPercent = getConfig().getDouble("AssaultMemberWeightPercent", 1.0);
         Settings.CollisionPrimer = getConfig().getInt("CollisionPrimer", 1000);
-        Settings.AssaultDestroyableBlocks = new HashSet<>(getConfig().getIntegerList("AssaultDestroyableBlocks"));
-        Settings.DisableShadowBlocks = new HashSet<>(getConfig().getIntegerList("DisableShadowBlocks"));  //REMOVE FOR PUBLIC VERSION
+        List<?> assaultDestroyableBlocks = getConfig().getList("AssaultDestroyableBlocks");
+        for (Object id : assaultDestroyableBlocks) {
+            final Material type;
+            if (id instanceof Integer)
+                type = LegacyUtils.getMaterial((Integer) id);
+            else
+                type = Material.getMaterial(((String) id).toUpperCase());
+            if (type == null)
+                continue;
+            Settings.AssaultDestroyableBlocks.add(type);
+        }
         Settings.ForbiddenRemoteSigns = new HashSet<>();
 
         for(String s : getConfig().getStringList("ForbiddenRemoteSigns")) {
             Settings.ForbiddenRemoteSigns.add(s.toLowerCase());
         }
-
+        List<String> disableShadowBlocks = getConfig().getStringList("DisableShadowBlocks");
+        for (String typ : disableShadowBlocks){
+            Material type;
+            try {
+                type = LegacyUtils.getMaterial(Integer.parseInt(typ));
+            } catch (NumberFormatException e){
+                type = Material.getMaterial(typ);
+            } catch (NoSuchMethodError e){
+                logger.warning(I18nSupport.getInternationalisedString("Startup - Numerical ID found") + " DisableShadowBlocks: " + typ);
+                continue;
+            }
+            if (type != null) {
+                Settings.DisableShadowBlocks.add(type);
+            }
+        }
+        Settings.RepairMaxPercent = getConfig().getDouble("RepairMaxPercent", 50.0);
+        Settings.ForbiddenRemoteSigns = new HashSet<>(getConfig().getStringList("ForbiddenRemoteSigns"));
         Settings.SiegeEnable = getConfig().getBoolean("SiegeEnable", false);
-
-
+        Settings.SiegeTimeZone = getConfig().getString("SiegeTimeZone", "UTC");
 
 
         if (!Settings.CompatibilityMode) {
-            for (int typ : Settings.DisableShadowBlocks) {
-                worldHandler.disableShadow(Material.getMaterial(typ));
+            for (Material typ : Settings.DisableShadowBlocks) {
+                worldHandler.disableShadow(typ);
             }
         }
         //load up WorldGuard if it's present
-        Plugin wGPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
-        if (wGPlugin == null || !(wGPlugin instanceof WorldGuardPlugin)) {
+        if (worldGuardPlugin == null) {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WG Not Found"));
             Settings.SiegeEnable = false;
             Settings.AssaultEnable = false;
@@ -223,19 +271,47 @@ public class Movecraft extends JavaPlugin {
             logger.log(Level.INFO, "Settings: WorldGuardBlockMoveOnBuildPerm - {0}, WorldGuardBlockSinkOnPVPPerm - {1}", new Object[]{Settings.WorldGuardBlockMoveOnBuildPerm, Settings.WorldGuardBlockSinkOnPVPPerm});
             getServer().getPluginManager().registerEvents(new WorldGuardCompatManager(), this);
         }
-        worldGuardPlugin = (WorldGuardPlugin) wGPlugin;
+
 
         //load up WorldEdit if it's present
+
         Plugin wEPlugin = getServer().getPluginManager().getPlugin("WorldEdit");
+
         if (wEPlugin == null || !(wEPlugin instanceof WorldEditPlugin)) {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WE Not Found"));
             Settings.AssaultEnable = false;
         } else {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WE Found"));
             Settings.RepairTicksPerBlock = getConfig().getInt("RepairTicksPerBlock", 0);
+            String weVersion;
+            //Now decide which WE compat should be used
+            if (!Settings.IsLegacy){
+                    weVersion = "we7";
+
+            } else {
+                weVersion = "we6";
+            }
+            //Test if a compatible MovecraftRepair is present
+            try {
+                final Class<?> clazz = Class.forName("net.countercraft.movecraft.compat." + weVersion + ".IMovecraftRepair");
+                //Check if we have a Repair class at that location
+                if (MovecraftRepair.class.isAssignableFrom(clazz)){
+                    this.movecraftRepair = (MovecraftRepair) clazz.getConstructor(Plugin.class).newInstance(this);
+                }
+            } catch (final Exception e){
+                e.printStackTrace();
+                this.getLogger().severe("Could not find a compatible repair class. Disabling repair and assault functions");
+                Settings.RepairTicksPerBlock = 0;
+                Settings.AssaultEnable = false;
+            }
             Settings.RepairMaxPercent = getConfig().getDouble("RepairMaxPercent", 50);
+            worldEditPlugin = (WorldEditPlugin) wEPlugin;
         }
-        worldEditPlugin = (WorldEditPlugin) wEPlugin;
+
+
+
+
+
 
         // next is Cannons
         Plugin plug = getServer().getPluginManager().getPlugin("Cannons");
@@ -245,31 +321,7 @@ public class Movecraft extends JavaPlugin {
         } else {
         	logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Cannons Not Found"));
         }
-        if (worldGuardPlugin != null && worldGuardPlugin instanceof WorldGuardPlugin) {
-            if (worldGuardPlugin.isEnabled()) {
-                Plugin tempWGCustomFlagsPlugin = getServer().getPluginManager().getPlugin("WGCustomFlags");
-                if (tempWGCustomFlagsPlugin != null && tempWGCustomFlagsPlugin instanceof WGCustomFlagsPlugin) {
-                    logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WGCF Found"));
-                    wgCustomFlagsPlugin = (WGCustomFlagsPlugin) tempWGCustomFlagsPlugin;
-                    WGCustomFlagsUtils WGCFU = new WGCustomFlagsUtils();
-                    FLAG_PILOT = WGCFU.getNewStateFlag("movecraft-pilot", true);
-                    FLAG_MOVE = WGCFU.getNewStateFlag("movecraft-move", true);
-                    FLAG_ROTATE = WGCFU.getNewStateFlag("movecraft-rotate", true);
-                    FLAG_SINK = WGCFU.getNewStateFlag("movecraft-sink", true);
-                    WGCFU.init();
-                    Settings.WGCustomFlagsUsePilotFlag = getConfig().getBoolean("WGCustomFlagsUsePilotFlag", false);
-                    Settings.WGCustomFlagsUseMoveFlag = getConfig().getBoolean("WGCustomFlagsUseMoveFlag", false);
-                    Settings.WGCustomFlagsUseRotateFlag = getConfig().getBoolean("WGCustomFlagsUseRotateFlag", false);
-                    Settings.WGCustomFlagsUseSinkFlag = getConfig().getBoolean("WGCustomFlagsUseSinkFlag", false);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUsePilotFlag - {0}", Settings.WGCustomFlagsUsePilotFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseMoveFlag - {0}", Settings.WGCustomFlagsUseMoveFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseRotateFlag - {0}", Settings.WGCustomFlagsUseRotateFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseSinkFlag - {0}", Settings.WGCustomFlagsUseSinkFlag);
-                } else {
-                    logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WGCF Not Found"));
-                }
-            }
-        }
+        //Towny
         Plugin tempTownyPlugin = getServer().getPluginManager().getPlugin("Towny");
         if (tempTownyPlugin != null && tempTownyPlugin instanceof Towny) {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Towny Found"));
@@ -284,7 +336,7 @@ public class Movecraft extends JavaPlugin {
         } else {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Towny Not Found"));
         }
-
+        //Essentials
         Plugin tempEssentialsPlugin = getServer().getPluginManager().getPlugin("Essentials");
         if (tempEssentialsPlugin != null) {
             if (tempEssentialsPlugin.getDescription().getName().equalsIgnoreCase("essentials")) {
@@ -299,7 +351,6 @@ public class Movecraft extends JavaPlugin {
         if (essentialsPlugin == null) {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Essentials Not Found"));
         }
-
         // and now Vault
         if (getServer().getPluginManager().getPlugin("Vault") != null) {
             RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
@@ -333,11 +384,14 @@ public class Movecraft extends JavaPlugin {
 
             // Startup procedure
             asyncManager = new AsyncManager();
-            asyncManager.runTaskTimer(this, 0, 1);
-            MapUpdateManager.getInstance().runTaskTimer(this, 0, 1);
+            if (startup) {
+                asyncManager.runTaskTimer(this, 0, 1);
+                MapUpdateManager.getInstance().runTaskTimer(this, 0, 1);
+            }
             if(Settings.AssaultEnable) {
                 assaultManager = new AssaultManager(this);
-                assaultManager.runTaskTimerAsynchronously(this, 0, 20);
+                if (startup)
+                    assaultManager.runTaskTimerAsynchronously(this, 0, 20);
             }
 
             if(Settings.SiegeEnable) {
@@ -358,10 +412,20 @@ public class Movecraft extends JavaPlugin {
                     List<Siege> sieges = siegeManager.getSieges();
                     for (Map.Entry<String, Map<String, ?>> entry : siegesMap.entrySet()) {
                         Map<String,Object> siegeMap = (Map<String, Object>) entry.getValue();
+                        final String regionToControl = (String) siegeMap.get("RegionToControl");
+                        if (!WorldguardUtils.regionExists(regionToControl)) {
+                            logger.severe(String.format(I18nSupport.getInternationalisedString("Startup - Siege Invalid region name"), "RegionToControl", regionToControl));
+                            continue;
+                        }
+                        final String siegeRegion = (String) siegeMap.get("SiegeRegion");
+                        if (!WorldguardUtils.regionExists(siegeRegion)) {
+                            logger.severe(String.format(I18nSupport.getInternationalisedString("Startup - Siege Invalid region name"), "SiegeRegion", regionToControl));
+                            continue;
+                        }
                         sieges.add(new Siege(
                                 entry.getKey(),
-                                (String) siegeMap.get("RegionToControl"),
-                                (String) siegeMap.get("SiegeRegion"),
+                                regionToControl,
+                                siegeRegion,
                                 (Integer) siegeMap.get("ScheduleStart"),
                                 (Integer) siegeMap.get("ScheduleEnd"),
                                 (Integer) siegeMap.getOrDefault("DelayBeforeStart", 0),
@@ -373,22 +437,24 @@ public class Movecraft extends JavaPlugin {
                                 (List<String>) siegeMap.getOrDefault("CraftsToWin", Collections.emptyList()),
                                 (List<String>) siegeMap.getOrDefault("SiegeCommandsOnStart", Collections.emptyList()),
                                 (List<String>) siegeMap.getOrDefault("SiegeCommandsOnWin", Collections.emptyList()),
-                                (List<String>) siegeMap.getOrDefault("SiegeCommandsOnLose", Collections.emptyList())));
+                                (List<String>) siegeMap.getOrDefault("SiegeCommandsOnLose", Collections.emptyList()),
+                                (Integer) siegeMap.getOrDefault("Cooldown", 0)));
                     }
                     logger.log(Level.INFO, "Siege configuration loaded.");
 
                 }
-                siegeManager.runTaskTimerAsynchronously(this, 0, 20);
+                if (startup)
+                    siegeManager.runTaskTimerAsynchronously(this, 0, 20);
+
             }
             CraftManager.initialize();
 
             getServer().getPluginManager().registerEvents(new InteractListener(), this);
             if (worldEditPlugin != null) {
-                final Class clazz;
-                MovecraftRepair.initialize(this);
-                if (MovecraftRepair.getInstance() != null){
+                if (movecraftRepair != null){
                     repairManager = new RepairManager();
-                    repairManager.runTaskTimerAsynchronously(this, 0, 1);
+                    if (startup)
+                        repairManager.runTaskTimerAsynchronously(this, 0, 1);
                     repairManager.convertOldCraftRepairStates();
                 }
             }
@@ -431,20 +497,73 @@ public class Movecraft extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new SubcraftRotateSign(), this);
             getServer().getPluginManager().registerEvents(new TeleportSign(), this);
 
+            //Start the update manager
+            UpdateManager.getInstance();
             logger.log(Level.INFO, String.format(
                     I18nSupport.getInternationalisedString("Startup - Enabled message"),
                     getDescription().getVersion()));
         }
+        startup = false;
     }
 
     @Override
     public void onLoad() {
-        super.onLoad();
+        String packageName = this.getServer().getClass().getPackage().getName();
+        String version = packageName.substring(packageName.lastIndexOf('.') + 1);
+        String[] parts = version.split("_");
+        int versionNumber = Integer.valueOf(parts[1]);
+        //Check if the server is 1.12 and lower or 1.13 and higher
+        Settings.IsPre1_9 = versionNumber < 9;
+        Settings.IsLegacy = versionNumber <= 12;
+        Settings.is1_14 = versionNumber >= 14;
         instance = this;
         logger = getLogger();
+        //load up WorldGuard if it's present
+        Plugin wGPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
+        if (wGPlugin instanceof WorldGuardPlugin) {
+            worldGuardPlugin = (WorldGuardPlugin) wGPlugin;
+            if (startup)
+                WorldGuardCompatManager.registerFlags();
+        }
     }
 
+    private void saveLegacyConfig(){
+        File configFile = new File(getDataFolder(), "config.yml");
+        if (configFile.exists())
+            return;
+        InputStream resource = getResource("config_legacy.yml");
+        Reader reader = new InputStreamReader(resource);
+        FileConfiguration config = YamlConfiguration.loadConfiguration(reader);
+        try {
+            config.save(configFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private void saveLocaleFiles(){
+        final String[] LOCALES = {"en", "cz", "nl"};
+        for (String locale : LOCALES){
+            saveResource("localisation/movecraftlang_" + locale + ".properties", false);
+        }
+    }
 
+    public void reload(){
+        onDisable();
+        asyncManager.cancel();
+        if (assaultManager != null)
+            assaultManager.cancel();
+        assaultManager = null;
+        if (siegeManager != null)
+            siegeManager.cancel();
+        siegeManager = null;
+        if (repairManager != null){
+            repairManager.cancel();
+        }
+        repairManager = null;
+        onEnable();
+
+
+    }
 
     public WorldGuardPlugin getWorldGuardPlugin() {
         return worldGuardPlugin;
@@ -485,6 +604,9 @@ public class Movecraft extends JavaPlugin {
     }
 
     public AsyncManager getAsyncManager(){return asyncManager;}
+
+
+    public MovecraftRepair getMovecraftRepair() {return movecraftRepair;}
 
     public RepairManager getRepairManager() {
         return repairManager;

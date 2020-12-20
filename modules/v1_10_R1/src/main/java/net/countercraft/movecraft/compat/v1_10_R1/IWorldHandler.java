@@ -19,7 +19,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -155,7 +154,7 @@ public class IWorldHandler extends WorldHandler {
         for(MovecraftLocation movecraftLocation : craft.getHitBox()) {
             positions.add(locationToPosition((movecraftLocation)).b(translateVector));
         }
-        WorldServer oldNativeWorld = ((CraftWorld) craft.getW()).getHandle();
+        WorldServer oldNativeWorld = ((CraftWorld) craft.getWorld()).getHandle();
         WorldServer nativeWorld = ((CraftWorld) world).getHandle();
         //*******************************************
         //*         Step two: Get the tiles         *
@@ -290,17 +289,21 @@ public class IWorldHandler extends WorldHandler {
         }
         chunkSection.setType(position.getX()&15, position.getY()&15, position.getZ()&15, data);
         world.notify(position, data, data, 3);
+        world.c(EnumSkyBlock.BLOCK, position);
         chunk.e(); // mark dirty
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Material material, byte data){
+    public void setBlockFast(@NotNull Location location, @NotNull Material material, Object data){
         setBlockFast(location, Rotation.NONE, material, data);
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, byte data) {
-        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData(data);
+    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, Object data) {
+        if (!(data instanceof Byte)) {
+            throw new IllegalArgumentException("data must be byte value for v1_10_R1");
+        }
+        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData((byte) data);
         blockData = blockData.a(ROTATION[rotation.ordinal()]);
         World world = ((CraftWorld)(location.getWorld())).getHandle();
         BlockPosition blockPosition = locationToPosition(bukkit2MovecraftLoc(location));

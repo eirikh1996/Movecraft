@@ -78,7 +78,7 @@ public class IWorldHandler extends WorldHandler {
         //*******************************************
         //*         Step two: Get the tiles         *
         //*******************************************
-        World nativeWorld = ((CraftWorld) craft.getW()).getHandle();
+        World nativeWorld = ((CraftWorld) craft.getWorld()).getHandle();
         List<TileHolder> tiles = new ArrayList<>();
         //get the tiles
         for(BlockPosition position : rotatedPositions.keySet()){
@@ -270,17 +270,21 @@ public class IWorldHandler extends WorldHandler {
 
         chunkSection.setType(position.getX()&15, position.getY()&15, position.getZ()&15, data);
         world.notify(position, data, data, 3);
+        world.c(EnumSkyBlock.BLOCK, position);
         chunk.e(); // mark dirty
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Material material, byte data){
+    public void setBlockFast(@NotNull Location location, @NotNull Material material, Object data){
         setBlockFast(location, Rotation.NONE, material, data);
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, byte data) {
-        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData(data);
+    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, Object data) {
+        if (!(data instanceof Byte)) {
+            throw new IllegalArgumentException("data must be byte value for v1_11_R1");
+        }
+        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData((byte) data);
         blockData = blockData.a(ROTATION[rotation.ordinal()]);
         World world = ((CraftWorld)(location.getWorld())).getHandle();
         BlockPosition blockPosition = locationToPosition(bukkit2MovecraftLoc(location));

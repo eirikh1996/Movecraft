@@ -20,6 +20,7 @@ package net.countercraft.movecraft.async;
 import at.pavlov.cannons.cannon.Cannon;
 import com.google.common.collect.Lists;
 import net.countercraft.movecraft.Movecraft;
+import net.countercraft.movecraft.MovecraftBlock;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.Rotation;
 import net.countercraft.movecraft.async.detection.DetectionTask;
@@ -36,7 +37,11 @@ import net.countercraft.movecraft.mapUpdater.update.BlockCreateCommand;
 import net.countercraft.movecraft.mapUpdater.update.UpdateCommand;
 import net.countercraft.movecraft.utils.*;
 import org.bukkit.*;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.SmallFireball;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
@@ -51,19 +56,71 @@ import java.util.stream.Collectors;
 public class AsyncManager extends BukkitRunnable {
     //private static AsyncManager instance = new AsyncManager();
     private final HashMap<AsyncTask, Craft> ownershipMap = new HashMap<>();
+    private final HashMap<TNTPrimed, Double> TNTTracking = new HashMap<>();
     private final HashMap<Craft, HashMap<Craft, Long>> recentContactTracking = new HashMap<>();
     private final BlockingQueue<AsyncTask> finishedAlgorithms = new LinkedBlockingQueue<>();
     private final HashSet<Craft> clearanceSet = new HashSet<>();
+    private final HashMap<SmallFireball, Long> FireballTracking = new HashMap<>();
     private final HashMap<HitBox, Long> wrecks = new HashMap<>();
     private final HashMap<HitBox, World> wreckWorlds = new HashMap<>();
-    private final HashMap<HitBox, Map<Location, Pair<Material, Byte>>> wreckPhases = new HashMap<>();
+    private final HashMap<HitBox, Map<Location, Pair<Material, Object>>> wreckPhases = new HashMap<>();
     private final WeakHashMap<World, Set<MovecraftLocation>> processedFadeLocs = new WeakHashMap<>();
     private final Map<Craft, Integer> cooldownCache = new WeakHashMap<>();
 
+    private long lastTracerUpdate = 0;
+    private long lastFireballCheck = 0;
+    private long lastTNTContactCheck = 0;
     private long lastFadeCheck = 0;
     private long lastContactCheck = 0;
+    private final HashSet<Material> transparent;
 
-    public AsyncManager() {}
+    public AsyncManager() {
+        transparent = new HashSet<>();
+        //These materials exists in both 1.12 and 1.13 APIs
+        transparent.add(Material.AIR);
+        transparent.add(Material.GLASS);
+        transparent.add(Material.REDSTONE_WIRE);
+        transparent.add(Material.IRON_TRAPDOOR);
+        transparent.add(Material.NETHER_BRICK_STAIRS);
+        transparent.add(Material.LEVER);
+        transparent.add(Material.STONE_BUTTON);
+
+        if (Settings.IsLegacy){
+            transparent.add(LegacyUtils.THIN_GLASS);
+            transparent.add(LegacyUtils.STAINED_GLASS);
+            transparent.add(LegacyUtils.STAINED_GLASS_PANE);
+            transparent.add(LegacyUtils.IRON_FENCE);
+            transparent.add(LegacyUtils.TRAP_DOOR);
+            transparent.add(LegacyUtils.WOOD_BUTTON);
+            transparent.add(LegacyUtils.STEP);
+            transparent.add(LegacyUtils.SMOOTH_STAIRS);
+            transparent.add(LegacyUtils.SIGN_POST);
+        } else {
+            if (Settings.is1_14) {
+                transparent.add(Material.BIRCH_SIGN);
+                transparent.add(Material.OAK_SIGN);
+                transparent.add(Material.DARK_OAK_SIGN);
+                transparent.add(Material.JUNGLE_SIGN);
+                transparent.add(Material.SPRUCE_SIGN);
+                transparent.add(Material.ACACIA_SIGN);
+                transparent.add(Material.BIRCH_WALL_SIGN);
+                transparent.add(Material.OAK_WALL_SIGN);
+                transparent.add(Material.DARK_OAK_WALL_SIGN);
+                transparent.add(Material.JUNGLE_WALL_SIGN);
+                transparent.add(Material.SPRUCE_WALL_SIGN);
+                transparent.add(Material.ACACIA_WALL_SIGN);
+            } else {
+                transparent.add(Material.getMaterial("SIGN"));
+                transparent.add(Material.getMaterial("WALL_SIGN"));
+            }
+            transparent.add(Material.GLASS_PANE);
+            for (Material transparent : Material.values()) {
+                if (!transparent.name().endsWith("STAINED_GLASS") && !transparent.name().endsWith("STAINED_GLASS_PANE"))
+                    continue;
+                this.transparent.add(transparent);
+            }
+        }
+    }
 
    /* public static AsyncManager getInstance() {
         return instance;
@@ -227,7 +284,7 @@ public class AsyncManager extends BukkitRunnable {
 
             for (MovecraftLocation location : entireHitbox) {
                 if (location.getY() <= waterLine) {
-                    c.getPhaseBlocks().put(location.toBukkit(c.getW()), new Pair<>(Material.WATER, (byte) 0));
+                    c.getPhaseBlocks().put(location.toBukkit(c.getW()), new Pair<>(Material.WATER, Settings.IsLegacy ? (byte) 0 : Bukkit.createBlockData(Material.WATER)));
                 }
             }
         }
@@ -365,7 +422,7 @@ public class AsyncManager extends BukkitRunnable {
                 continue;
             }
             long ticksElapsed = (System.currentTimeMillis() - pcraft.getLastCruiseUpdate()) / 50;
-            World w = pcraft.getW();
+            World w = pcraft.getWorld();
             // if the craft should go slower underwater, make
             // time pass more slowly there
             if (pcraft.getType().getHalfSpeedUnderwater() && pcraft.getHitBox().getMinY() < w.getSeaLevel())
@@ -394,7 +451,7 @@ public class AsyncManager extends BukkitRunnable {
             if(Settings.Debug) {
                 Movecraft.getInstance().getLogger().info("TickCoolDown: " + tickCoolDown);
             }
-            if(pcraft.getCruiseDirection() != 0x42 && pcraft.getCruiseDirection() != 0x43) {
+            if(pcraft.getCruiseDirection() != BlockFace.UP && pcraft.getCruiseDirection() != BlockFace.DOWN) {
                 if (bankLeft || bankRight) {
                     if (!dive) {
                         tickCoolDown *= (Math.sqrt(Math.pow(1 + pcraft.getType().getCruiseSkipBlocks(w), 2) + Math.pow(pcraft.getType().getCruiseSkipBlocks(w) >> 1, 2)) / (1 + pcraft.getType().getCruiseSkipBlocks(w)));
@@ -419,12 +476,12 @@ public class AsyncManager extends BukkitRunnable {
             int dy = 0;
 
             // ascend
-            if (pcraft.getCruiseDirection() == 0x42) {
-                dy = 1 + pcraft.getType().getVertCruiseSkipBlocks();
+            if (pcraft.getCruiseDirection() == BlockFace.UP) {
+                dy = 1 + pcraft.getType().getVertCruiseSkipBlocks(w);
             }
             // descend
-            if (pcraft.getCruiseDirection() == 0x43) {
-                dy = -1 - pcraft.getType().getVertCruiseSkipBlocks();
+            if (pcraft.getCruiseDirection() == BlockFace.DOWN) {
+                dy = -1 - pcraft.getType().getVertCruiseSkipBlocks(w);
                 if (pcraft.getHitBox().getMinY() <= w.getSeaLevel()) {
                     dy = -1;
                 }
@@ -435,7 +492,7 @@ public class AsyncManager extends BukkitRunnable {
                 }
             }
             // ship faces west
-            if (pcraft.getCruiseDirection() == 0x5) {
+            if (pcraft.getCruiseDirection() == BlockFace.WEST) {
                 dx = -1 - pcraft.getType().getCruiseSkipBlocks(w);
                 if (bankRight) {
                     dz = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
@@ -443,9 +500,10 @@ public class AsyncManager extends BukkitRunnable {
                 if (bankLeft) {
                     dz = (1 + pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
                 }
+
             }
             // ship faces east
-            if (pcraft.getCruiseDirection() == 0x4) {
+            if (pcraft.getCruiseDirection() == BlockFace.EAST) {
                 dx = 1 + pcraft.getType().getCruiseSkipBlocks(w);
                 if (bankLeft) {
                     dz = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
@@ -455,28 +513,32 @@ public class AsyncManager extends BukkitRunnable {
                 }
             }
             // ship faces north
-            if (pcraft.getCruiseDirection() == 0x2) {
-                dz = 1 + pcraft.getType().getCruiseSkipBlocks(w);
+            if (pcraft.getCruiseDirection() == BlockFace.NORTH) {
+                dz = -1 - pcraft.getType().getCruiseSkipBlocks(w);
                 if (bankRight) {
-                    dx = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
+                    dx = (1 + pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
                 }
                 if (bankLeft) {
-                    dx = (1 + pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
+                    dx = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
                 }
             }
             // ship faces south
-            if (pcraft.getCruiseDirection() == 0x3) {
-                dz = -1 - pcraft.getType().getCruiseSkipBlocks(w);
+            if (pcraft.getCruiseDirection() == BlockFace.SOUTH) {
+                dz = 1 + pcraft.getType().getCruiseSkipBlocks(w);
                 if (bankLeft) {
-                    dx = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
+                    dx = (1 + pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
                 }
                 if (bankRight) {
-                    dx = (1 + pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
+                    dx = (-1 - pcraft.getType().getCruiseSkipBlocks(w)) >> 1;
                 }
             }
             if (pcraft.getType().getCruiseOnPilot()) {
                 dy = pcraft.getType().getCruiseOnPilotVertMove();
             }
+            final int gearshift = pcraft.getCurrentGear();
+            dx *= gearshift;
+            dy *= gearshift;
+            dz *= gearshift;
             pcraft.translate(dx, dy, dz);
             pcraft.setLastDX(dx);
             pcraft.setLastDZ(dz);
@@ -502,33 +564,36 @@ public class AsyncManager extends BukkitRunnable {
             if (ticksElapsed <= Settings.SinkCheckTicks) {
                 continue;
             }
-            final World w = pcraft.getW();
+            final World w = pcraft.getWorld();
             int totalNonNegligibleBlocks = 0;
             int totalNonNegligibleWaterBlocks = 0;
-            HashMap<List<Integer>, Integer> foundFlyBlocks = new HashMap<>();
-            HashMap<List<Integer>, Integer> foundMoveBlocks = new HashMap<>();
+            HashMap<Set<MovecraftBlock>, Integer> foundFlyBlocks = new HashMap<>();
+            HashMap<Set<MovecraftBlock>, Integer> foundMoveBlocks = new HashMap<>();
             // go through each block in the blocklist, and
             // if its in the FlyBlocks, total up the number
             // of them
+            BlockLimitManager moveBlocks = pcraft.getType().getMoveBlocks();
+            BlockLimitManager flyBlocks = pcraft.getType().getFlyBlocks();
             for (MovecraftLocation l : pcraft.getHitBox()) {
-                int blockID = w.getBlockAt(l.getX(), l.getY(), l.getZ()).getTypeId();
-                int dataID = (int) w.getBlockAt(l.getX(), l.getY(), l.getZ()).getData();
-                int shiftedID = (blockID << 4) + dataID + 10000;
-                for (List<Integer> flyBlockDef : pcraft.getType().getFlyBlocks().keySet()) {
-                    if (flyBlockDef.contains(blockID) || flyBlockDef.contains(shiftedID)) {
-                        foundFlyBlocks.merge(flyBlockDef, 1, (a, b) -> a + b);
-                    }
-                }
-                for (List<Integer> moveBlockDef : pcraft.getType().getMoveBlocks().keySet()) {
-                    if (moveBlockDef.contains(blockID) || moveBlockDef.contains(shiftedID)) {
-                        foundMoveBlocks.merge(moveBlockDef, 1, (a, b) -> a + b);
-                    }
+                Material blockType = w.getBlockAt(l.getX(), l.getY(), l.getZ()).getType();
+                byte dataID = w.getBlockAt(l.getX(), l.getY(), l.getZ()).getData();
+                if (flyBlocks.contains(blockType)) {
+                    foundFlyBlocks.merge(flyBlocks.get(blockType).getBlocks(), 1, (a, b) -> a + b);
+                } else if (flyBlocks.contains(blockType, dataID)){
+                    foundFlyBlocks.merge(flyBlocks.get(blockType, dataID).getBlocks(), 1, (a, b) -> a + b);
                 }
 
-                if (blockID != 0 && blockID != 51) {
+                if (moveBlocks.contains(blockType)) {
+                    foundMoveBlocks.merge(moveBlocks.get(blockType).getBlocks(), 1, (a, b) -> a + b);
+                } else if (moveBlocks.contains(blockType, dataID)){
+                    foundMoveBlocks.merge(moveBlocks.get(blockType, dataID).getBlocks(), 1, (a, b) -> a + b);
+                }
+
+
+                if (blockType != Material.AIR && blockType != Material.FIRE) {
                     totalNonNegligibleBlocks++;
                 }
-                if (blockID != 0 && blockID != 51 && blockID != 8 && blockID != 9) {
+                if (blockType != Material.AIR && blockType != Material.FIRE && blockType != Material.WATER && blockType != LegacyUtils.STATIONARY_WATER) {
                     totalNonNegligibleWaterBlocks++;
                 }
             }
@@ -538,32 +603,32 @@ public class AsyncManager extends BukkitRunnable {
             // SinkPercent
             boolean isSinking = false;
 
-            for (List<Integer> i : pcraft.getType().getFlyBlocks().keySet()) {
+            for (BlockLimitManager.Entry i : pcraft.getType().getFlyBlocks().getEntries()) {
                 int numfound = 0;
-                if (foundFlyBlocks.get(i) != null) {
-                    numfound = foundFlyBlocks.get(i);
+                if (foundFlyBlocks.get(i.getBlocks()) != null) {
+                    numfound = foundFlyBlocks.get(i.getBlocks());
                 }
                 double percent = ((double) numfound / (double) totalNonNegligibleBlocks) * 100.0;
-                double flyPercent = pcraft.getType().getFlyBlocks().get(i).get(0);
+                double flyPercent = i.getLowerLimit();
                 double sinkPercent = flyPercent * pcraft.getType().getSinkPercent() / 100.0;
                 if (percent < sinkPercent) {
                     isSinking = true;
                 }
 
             }
-            for (List<Integer> i : pcraft.getType().getMoveBlocks().keySet()) {
+            for (BlockLimitManager.Entry i : pcraft.getType().getMoveBlocks().getEntries()) {
                 int numfound = 0;
-                if (foundMoveBlocks.get(i) != null) {
-                    numfound = foundMoveBlocks.get(i);
+                if (foundMoveBlocks.get(i.getBlocks()) != null) {
+                    numfound = foundMoveBlocks.get(i.getBlocks());
                 }
                 double percent = ((double) numfound / (double) totalNonNegligibleBlocks) * 100.0;
-                double movePercent = pcraft.getType().getMoveBlocks().get(i).get(0);
+                double movePercent = i.getLowerLimit();
                 double disablePercent = movePercent * pcraft.getType().getSinkPercent() / 100.0;
                 if (percent < disablePercent && !pcraft.getDisabled() && pcraft.isNotProcessing()) {
                     pcraft.setDisabled(true);
                     if (pcraft.getNotificationPlayer() != null) {
                         Location loc = pcraft.getNotificationPlayer().getLocation();
-                        pcraft.getW().playSound(loc, Sound.ENTITY_IRONGOLEM_DEATH, 5.0f, 5.0f);
+                        pcraft.getWorld().playSound(loc, Settings.IsLegacy ? (Settings.IsPre1_9 ? LegacyUtils.IRONGOLEM_DEATH : LegacyUtils.ENITIY_IRONGOLEM_DEATH)  : Sound.ENTITY_IRON_GOLEM_DEATH , 5.0f, 5.0f);
                     }
                 }
             }
@@ -631,6 +696,23 @@ public class AsyncManager extends BukkitRunnable {
         }
     }
 
+    private Craft fastNearestCraftToLoc(Location loc) {
+        Craft ret = null;
+        long closestDistSquared = Long.MAX_VALUE;
+        Set<Craft> craftsList = CraftManager.getInstance().getCraftsInWorld(loc.getWorld());
+        for (Craft i : craftsList) {
+            int midX = (i.getHitBox().getMaxX() + i.getHitBox().getMinX()) >> 1;
+//				int midY=(i.getMaxY()+i.getMinY())>>1; don't check Y because it is slow
+            int midZ = (i.getHitBox().getMaxZ() + i.getHitBox().getMinZ()) >> 1;
+            long distSquared = (long) (Math.pow(midX -  loc.getX(), 2) + Math.pow(midZ - (int) loc.getZ(), 2));
+            if (distSquared < closestDistSquared) {
+                closestDistSquared = distSquared;
+                ret = i;
+            }
+        }
+        return ret;
+    }
+
     private void processFadingBlocks() {
         if (Settings.FadeWrecksAfter == 0)
             return;
@@ -644,7 +726,7 @@ public class AsyncManager extends BukkitRunnable {
                 continue;
             }
             final HitBox hitBox = entry.getKey();
-            final Map<Location, Pair<Material, Byte>> phaseBlocks = wreckPhases.get(hitBox);
+            final Map<Location, Pair<Material, Object>> phaseBlocks = wreckPhases.get(hitBox);
             final World world = wreckWorlds.get(hitBox);
             ArrayList<UpdateCommand> commands = new ArrayList<>();
             int fadedBlocks = 0;
@@ -667,9 +749,13 @@ public class AsyncManager extends BukkitRunnable {
                 }
                 fadedBlocks++;
                 processedFadeLocs.get(world).add(location);
-                Pair<Material, Byte> phaseBlock = phaseBlocks.getOrDefault(bLoc, new Pair<>(Material.AIR, (byte) 0));
-                commands.add(new BlockCreateCommand(world, location, phaseBlock.getLeft(), phaseBlock.getRight()));
-                
+                Pair<Material, Object> phaseBlock = phaseBlocks.getOrDefault(bLoc, new Pair<>(Material.AIR, Settings.IsLegacy ? (byte) 0 : Bukkit.createBlockData(Material.AIR)));
+                if (Settings.IsLegacy) {
+                    commands.add(new BlockCreateCommand(world, location, phaseBlock.getLeft(), (byte) phaseBlock.getRight()));
+                } else {
+                    commands.add(new BlockCreateCommand(world, location, phaseBlock.getLeft(), (BlockData) phaseBlock.getRight()));
+                }
+
             }
             MapUpdateManager.getInstance().scheduleUpdates(commands);
             if (!processedFadeLocs.get(world).containsAll(hitBox.asSet())) {
@@ -839,6 +925,7 @@ public class AsyncManager extends BukkitRunnable {
 
     private void clearAll() {
         for (Craft c : clearanceSet) {
+            c.setTranslating(false);
             c.setProcessing(false);
         }
 

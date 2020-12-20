@@ -18,7 +18,7 @@
 package net.countercraft.movecraft.craft;
 
 import net.countercraft.movecraft.Movecraft;
-import net.countercraft.movecraft.events.CraftPilotEvent;
+import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.exception.NonCancellableReleaseException;
 import net.countercraft.movecraft.localisation.I18nSupport;
@@ -47,9 +47,11 @@ public class CraftManager implements Iterable<Craft>{
     @NotNull private final ConcurrentMap<Craft, BukkitTask> releaseEvents = new ConcurrentHashMap<>();
     @NotNull private Set<CraftType> craftTypes;
     @NotNull private final WeakHashMap<Player, Long> overboards = new WeakHashMap<>();
+    private static Thread serverThread;
 
     public static void initialize(){
         ourInstance = new CraftManager();
+        serverThread = Thread.currentThread();
     }
 
     private CraftManager() {
@@ -70,18 +72,65 @@ public class CraftManager implements Iterable<Craft>{
         File craftsFile = new File(Movecraft.getInstance().getDataFolder().getAbsolutePath() + "/types");
 
         if (craftsFile.mkdirs()) {
-            Movecraft.getInstance().saveResource("types/airship.craft", false);
-            Movecraft.getInstance().saveResource("types/airskiff.craft", false);
-            Movecraft.getInstance().saveResource("types/BigAirship.craft", false);
-            Movecraft.getInstance().saveResource("types/BigSubAirship.craft", false);
-            Movecraft.getInstance().saveResource("types/elevator.craft", false);
-            Movecraft.getInstance().saveResource("types/LaunchTorpedo.craft", false);
-            Movecraft.getInstance().saveResource("types/Ship.craft", false);
-            Movecraft.getInstance().saveResource("types/SubAirship.craft", false);
-            Movecraft.getInstance().saveResource("types/Submarine.craft", false);
-            Movecraft.getInstance().saveResource("types/Turret.craft", false);
-        }
+            if (Settings.IsLegacy) { //save legacy craft files if server version is 1.12.2 or below
+                Movecraft.getInstance().saveResource("types/legacy/airship.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/airskiff.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/BigAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/BigSubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/elevator.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/LaunchTorpedo.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/Ship.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/SubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/Submarine.craft", false);
+                Movecraft.getInstance().saveResource("types/legacy/Turret.craft", false);
 
+            } else if (Settings.is1_14){ //if 1.14, save 1.14 files
+                Movecraft.getInstance().saveResource("types/1_14/airship.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/airskiff.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/BigAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/BigSubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/elevator.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/LaunchTorpedo.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/Ship.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/SubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/Submarine.craft", false);
+                Movecraft.getInstance().saveResource("types/1_14/Turret.craft", false);
+
+            } else { //if 1.13, save 1.13 files
+                Movecraft.getInstance().saveResource("types/airship.craft", false);
+                Movecraft.getInstance().saveResource("types/airskiff.craft", false);
+                Movecraft.getInstance().saveResource("types/BigAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/BigSubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/elevator.craft", false);
+                Movecraft.getInstance().saveResource("types/LaunchTorpedo.craft", false);
+                Movecraft.getInstance().saveResource("types/Ship.craft", false);
+                Movecraft.getInstance().saveResource("types/SubAirship.craft", false);
+                Movecraft.getInstance().saveResource("types/Submarine.craft", false);
+                Movecraft.getInstance().saveResource("types/Turret.craft", false);
+            }
+        }
+        final File legacydir = new File(craftsFile,"legacy");
+        if (legacydir.exists()) {
+            for (File craftFile : legacydir.listFiles()) {
+                final String fileName = craftFile.getName();
+                if (!craftFile.renameTo(new File(craftsFile, fileName))) continue;
+                craftFile.delete();
+            }
+            if (legacydir.listFiles().length == 0)
+                legacydir.delete();
+        }
+        final File v1_14dir = new File(craftsFile,"1_14");
+        if (v1_14dir.exists()) {
+            File[] files = v1_14dir.listFiles();
+            for (File craftFile : files) {
+                final String fileName = craftFile.getName();
+                File destination = new File(craftsFile, fileName);
+                if (!craftFile.renameTo(destination)) continue;
+                craftFile.delete();
+            }
+            if (v1_14dir.listFiles().length == 0)
+                v1_14dir.delete();
+        }
         Set<CraftType> craftTypes = new HashSet<>();
         File[] files = craftsFile.listFiles();
         if (files == null){
@@ -92,8 +141,12 @@ public class CraftManager implements Iterable<Craft>{
             if (file.isFile()) {
 
                 if (file.getName().contains(".craft")) {
-                    CraftType type = new CraftType(file);
-                    craftTypes.add(type);
+                    try {
+                        CraftType type = new CraftType(file);
+                        craftTypes.add(type);
+                    } catch (Exception e){
+                        e.printStackTrace();
+                    }
                 }
             }
         }
@@ -115,11 +168,10 @@ public class CraftManager implements Iterable<Craft>{
     }
 
     public void removeCraft(@NotNull Craft c, @NotNull CraftReleaseEvent.Reason reason) {
-        CraftReleaseEvent e = new CraftReleaseEvent(c, reason);
+        CraftReleaseEvent e = new CraftReleaseEvent(c, reason, serverThread != Thread.currentThread());
         Bukkit.getServer().getPluginManager().callEvent(e);
         if (e.isCancelled())
             return;
-
         removeReleaseTask(c);
 
         Player player = getPlayerFromCraft(c);
@@ -155,7 +207,7 @@ public class CraftManager implements Iterable<Craft>{
     public Set<Craft> getCraftsInWorld(@NotNull World w) {
         Set<Craft> crafts = new HashSet<>();
         for(Craft c : this.craftList){
-            if(c.getW() == w)
+            if(c.getWorld() == w)
                 crafts.add(c);
         }
         return crafts;

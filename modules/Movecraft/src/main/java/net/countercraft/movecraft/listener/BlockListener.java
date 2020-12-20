@@ -17,22 +17,26 @@
 
 package net.countercraft.movecraft.listener;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
-import com.sk89q.worldguard.protection.flags.DefaultFlag;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.LegacyUtils;
 import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.utils.WorldguardUtils;
 import net.countercraft.movecraft.warfare.assault.Assault;
 import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.Hopper;
-import org.bukkit.block.Sign;
+import org.bukkit.block.*;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -51,20 +55,19 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
 public class BlockListener implements Listener {
 
-    final int[] fragileBlocks = new int[]{26, 34, 50, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 323, 324, 330, 331, 356, 404};
-    private long lastDamagesUpdate = 0;
+
+    private long lastDamagesUpdate;
 
     @EventHandler
     public void onBlockPlace(final BlockPlaceEvent e) {
         if (!Settings.RestrictSiBsToRegions ||
-                e.getBlockPlaced().getTypeId() != 54 ||
+                e.getBlockPlaced().getType() != Material.CHEST ||
                 !e.getItemInHand().hasItemMeta() ||
                 !e.getItemInHand().getItemMeta().hasLore()) {
             return;
@@ -78,7 +81,12 @@ public class BlockListener implements Listener {
                 return;
             }
             Location loc = e.getBlockPlaced().getLocation();
-            ApplicableRegionSet regions = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(loc.getWorld()).getApplicableRegions(loc);
+            ApplicableRegionSet regions;
+            if (Settings.IsLegacy){
+                regions = LegacyUtils.getApplicableRegions(LegacyUtils.getRegionManager(Movecraft.getInstance().getWorldGuardPlugin(), loc.getWorld()), loc);//.getApplicableRegions();
+            } else {
+                regions = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(loc.getWorld())).getApplicableRegions(BlockVector3.at(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
+            }
             if (regions.size() == 0) {
                 e.getPlayer().sendMessage(I18nSupport.getInternationalisedString("SIB MUST BE PLACED IN REGION"));
                 e.setCancelled(true);
@@ -92,9 +100,9 @@ public class BlockListener implements Listener {
         if (e.isCancelled()) {
             return;
         }
-        if (e.getBlock().getType() == Material.WALL_SIGN) {
+        if (e.getBlock().getType().name().endsWith("WALL_SIGN")) {
             Sign s = (Sign) e.getBlock().getState();
-            if (s.getLine(0).equalsIgnoreCase(ChatColor.RED + I18nSupport.getInternationalisedString("Region Damaged"))) {
+            if (s.getLine(0).equalsIgnoreCase(ChatColor.RED + "REGION DAMAGED!")) {
                 e.setCancelled(true);
                 return;
             }
@@ -156,20 +164,34 @@ public class BlockListener implements Listener {
         CraftManager.getInstance().getCraftsInWorld(block.getWorld());
         for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(block.getWorld())) {
             MovecraftLocation mloc = new MovecraftLocation(block.getX(), block.getY(), block.getZ());
-            if (MathUtils.locIsNearCraftFast(tcraft, mloc) &&
-                    tcraft.getCruising() && (block.getTypeId() == 29 ||
-                    block.getTypeId() == 33 || block.getTypeId() == 23 &&
-                    !tcraft.isNotProcessing())) {
-                event.setNewCurrent(event.getOldCurrent()); // don't allow piston movement on cruising crafts
-                return;
+            if (Settings.IsLegacy) {
+                if (MathUtils.locIsNearCraftFast(tcraft, mloc) &&
+                        tcraft.getCruising() && (block.getType() == LegacyUtils.PISTON_STICKY_BASE ||
+                        block.getType() == LegacyUtils.PISTON_BASE || block.getType() == Material.DISPENSER &&
+                        !tcraft.isNotProcessing())) {
+                    event.setNewCurrent(event.getOldCurrent()); // don't allow piston movement on cruising crafts
+                    return;
+                }
+            } else {
+                if (MathUtils.locIsNearCraftFast(tcraft, mloc) &&
+                        tcraft.getCruising() && (block.getType() == Material.STICKY_PISTON ||
+                        block.getType() == Material.PISTON || block.getType() == Material.DISPENSER &&
+                        !tcraft.isNotProcessing())) {
+                    event.setNewCurrent(event.getOldCurrent()); // don't allow piston movement on cruising crafts
+                    return;
+                }
             }
         }
     }
 
+    public void onPistonRetract(BlockPistonRetractEvent event){
+
+    }
     // prevent pistons on cruising crafts
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPistonEvent(BlockPistonExtendEvent event) {
         Block block = event.getBlock();
+
         CraftManager.getInstance().getCraftsInWorld(block.getWorld());
         for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(block.getWorld())) {
             MovecraftLocation mloc = new MovecraftLocation(block.getX(), block.getY(), block.getZ());
@@ -205,29 +227,35 @@ public class BlockListener implements Listener {
         }
 
         Block block = event.getBlock();
-
-        final int[] fragileBlocks = new int[]{26, 34, 50, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 193, 194, 195, 196, 197};
-        CraftManager.getInstance().getCraftsInWorld(block.getWorld());
         for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(block.getWorld())) {
             MovecraftLocation mloc = new MovecraftLocation(block.getX(), block.getY(), block.getZ());
             if (!MathUtils.locIsNearCraftFast(tcraft, mloc)) {
                 continue;
             }
-            if (Arrays.binarySearch(fragileBlocks, block.getTypeId()) >= 0) {
-                MaterialData m = block.getState().getData();
+
+            if (isFragileBlock(block)) {
                 BlockFace face = BlockFace.DOWN;
                 boolean faceAlwaysDown = false;
-                if (block.getTypeId() == 149 || block.getTypeId() == 150 || block.getTypeId() == 93 || block.getTypeId() == 94)
-                    faceAlwaysDown = true;
-                if (m instanceof Attachable && !faceAlwaysDown) {
-                    face = ((Attachable) m).getAttachedFace();
+                if (Settings.IsLegacy) {
+                    MaterialData m = block.getState().getData();
+                    if (block.getType() == LegacyUtils.REDSTONE_COMPARATOR_ON || block.getType() == LegacyUtils.REDSTONE_COMPARATOR_OFF || block.getType() == LegacyUtils.DIODE_BLOCK_ON|| block.getType() == LegacyUtils.DIODE_BLOCK_OFF)
+                        faceAlwaysDown = true;
+                    if (m instanceof Attachable && !faceAlwaysDown) {
+                        face = ((Attachable) m).getAttachedFace();
+                    }
+                } else {
+                    BlockData data = block.getBlockData();
+                    if (block.getType() == Material.REPEATER || block.getType() == Material.COMPARATOR)
+                        faceAlwaysDown = true;
+                    if (data instanceof Directional && !faceAlwaysDown && !(data instanceof Door))
+                        face = ((Directional) data).getFacing().getOppositeFace();
                 }
                 if (!event.getBlock().getRelative(face).getType().isSolid()) {
-//						if(event.getEventName().equals("BlockPhysicsEvent")) {
                     event.setCancelled(true);
                     return;
                 }
             }
+
         }
     }
 
@@ -246,16 +274,13 @@ public class BlockListener implements Listener {
                 testBlock = event.getBlock().getRelative(0, 0, -1);
             if (!testBlock.getType().isBurnable())
                 testBlock = event.getBlock().getRelative(0, 0, 1);
-
             if (!testBlock.getType().isBurnable()) {
                 return;
             }
             // check to see if fire spread is allowed, don't check if worldguard integration is not enabled
-            if (Movecraft.getInstance().getWorldGuardPlugin() != null && (Settings.WorldGuardBlockMoveOnBuildPerm || Settings.WorldGuardBlockSinkOnPVPPerm)) {
-                ApplicableRegionSet set = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(testBlock.getWorld()).getApplicableRegions(testBlock.getLocation());
-                if (!set.allows(DefaultFlag.FIRE_SPREAD)) {
+            if (Movecraft.getInstance().getWorldGuardPlugin() != null && (Settings.WorldGuardBlockMoveOnBuildPerm || Settings.WorldGuardBlockSinkOnPVPPerm) && !WorldguardUtils.allowFireSpread(testBlock.getLocation())) {
                     return;
-                }
+
             }
             testBlock.setType(org.bukkit.Material.AIR);
         } else if (adjacentCraft != null) {
@@ -299,7 +324,6 @@ public class BlockListener implements Listener {
         processAssault(e);
     }
 
-    //TODO: move to Warfare plugin
     private void processAssault(EntityExplodeEvent e){
         List<Assault> assaults = Movecraft.getInstance().getAssaultManager() != null ? Movecraft.getInstance().getAssaultManager().getAssaults() : null;
         if (assaults == null || assaults.size() == 0) {
@@ -312,7 +336,7 @@ public class BlockListener implements Listener {
                 Block b = i.next();
                 if (b.getWorld() != assault.getWorld())
                     continue;
-                ApplicableRegionSet regions = worldGuard.getRegionManager(b.getWorld()).getApplicableRegions(b.getLocation());
+                ApplicableRegionSet regions = WorldguardUtils.getRegionsAt(b.getLocation());
                 boolean isInAssaultRegion = false;
                 for (com.sk89q.worldguard.protection.regions.ProtectedRegion tregion : regions.getRegions()) {
                     if (assault.getRegionName().equals(tregion.getId())) {
@@ -322,27 +346,31 @@ public class BlockListener implements Listener {
                 if (!isInAssaultRegion)
                     continue;
                 // first see if it is outside the destroyable area
-                com.sk89q.worldedit.Vector min = assault.getMinPos();
-                com.sk89q.worldedit.Vector max = assault.getMaxPos();
+                org.bukkit.util.Vector min = assault.getMinPos();
+                org.bukkit.util.Vector max = assault.getMaxPos();
 
                 if (b.getLocation().getBlockX() < min.getBlockX() ||
                         b.getLocation().getBlockX() > max.getBlockX() ||
                         b.getLocation().getBlockZ() < min.getBlockZ() ||
                         b.getLocation().getBlockZ() > max.getBlockZ() ||
-                        !Settings.AssaultDestroyableBlocks.contains(b.getTypeId()) ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.SOUTH).getTypeId()) >= 0 ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.DOWN).getTypeId()) >= 0 ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.UP).getTypeId()) >= 0 ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.EAST).getTypeId()) >= 0 ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.WEST).getTypeId()) >= 0 ||
-                        Arrays.binarySearch(fragileBlocks, b.getRelative(BlockFace.NORTH).getTypeId()) >= 0) {
+                        !Settings.AssaultDestroyableBlocks.contains(b.getType()) ||
+                        isFragileBlock(b.getRelative(BlockFace.SOUTH)) ||
+                        isFragileBlock(b.getRelative(BlockFace.DOWN)) ||
+                        isFragileBlock(b.getRelative(BlockFace.UP)) ||
+                        isFragileBlock(b.getRelative(BlockFace.EAST)) ||
+                        isFragileBlock(b.getRelative(BlockFace.WEST)) ||
+                        isFragileBlock(b.getRelative(BlockFace.NORTH)) ) {
                     i.remove();
                 }
 
 
                 // whether or not you actually destroyed the block, add to damages
                 long damages = assault.getDamages() + Settings.AssaultDamagesPerBlock;
-                assault.setDamages(Math.min(damages, assault.getMaxDamages()));
+                if (damages < assault.getMaxDamages()) {
+                    assault.setDamages(damages);
+                } else {
+                    assault.setDamages(assault.getMaxDamages());
+                }
 
                 // notify nearby players of the damages, do this 1 second later so all damages from this volley will be included
                 if (System.currentTimeMillis() < lastDamagesUpdate + 4000) {
@@ -357,7 +385,8 @@ public class BlockListener implements Listener {
                         for (Player p : fworld.getPlayers()) {
                             if (Math.round(p.getLocation().getBlockX() / 1000.0) == Math.round(floc.getBlockX() / 1000.0) &&
                                     Math.round(p.getLocation().getBlockZ() / 1000.0) == Math.round(floc.getBlockZ() / 1000.0)) {
-                                p.sendMessage(I18nSupport.getInternationalisedString("Damage")+": " + fdamages);
+                                p.sendMessage("Damages: " + fdamages);
+
                             }
                         }
                     }
@@ -396,5 +425,42 @@ public class BlockListener implements Listener {
             return true;
         }
         return false;
+    }
+    private boolean isFragileBlock(Block block) {
+        Material type = block.getType();
+        BlockState state = block.getState();
+        return type.name().endsWith("_BED") ||
+                state instanceof Sign ||
+                type.name().endsWith("DOOR") ||
+                type.name().endsWith("BUTTON") ||
+                type.name().endsWith("_PLATE") ||
+                type == Material.REDSTONE_WIRE ||
+                type.name().endsWith("TORCH") ||
+                type == Material.TRIPWIRE ||
+                type == Material.TRIPWIRE_HOOK ||
+                type == Material.LADDER ||
+                type == Material.LEVER ||
+                type == Material.DAYLIGHT_DETECTOR ||
+                (Settings.IsLegacy ?
+                        (type == LegacyUtils.BED_BLOCK||
+                        type == LegacyUtils.PISTON_EXTENSION||
+                        type == LegacyUtils.SIGN_POST||
+                        type == LegacyUtils.WOOD_DOOR||
+                        type == LegacyUtils.WALL_SIGN||
+                        type == LegacyUtils.IRON_DOOR_BLOCK||
+                        type == LegacyUtils.REDSTONE_TORCH_OFF||
+                        type == LegacyUtils.REDSTONE_TORCH_ON||
+                        type == LegacyUtils.DIODE_BLOCK_OFF||
+                        type == LegacyUtils.DIODE_BLOCK_ON||
+                        type == LegacyUtils.TRAP_DOOR ||
+                        type == LegacyUtils.REDSTONE_COMPARATOR_OFF||
+                        type == LegacyUtils.REDSTONE_COMPARATOR_ON ||
+                        type == LegacyUtils.CARPET||
+                        type == LegacyUtils.DAYLIGHT_DETECTOR_INVERTED)
+        :
+                        (type == Material.REPEATER ||
+                        type == Material.COMPARATOR )
+        );
+
     }
 }

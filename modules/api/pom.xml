@@ -7,6 +7,8 @@
     <url>http://github.com/apdevteam/Movecraft</url>
     <version>API</version>
 
+
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.jupiter.version>5.2.0</junit.jupiter.version>
@@ -21,8 +23,11 @@
         <version>parent</version>
         <relativePath>../../</relativePath>
     </parent>
-
     <repositories>
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
+        </repository>
         <repository>
             <id>sk89q-repo</id>
             <url>http://maven.sk89q.com/repo/</url>

@@ -8,12 +8,14 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.utils.CollectionUtils;
 import net.countercraft.movecraft.utils.MathUtils;
 import net.minecraft.server.v1_12_R1.*;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_12_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_12_R1.util.CraftMagicNumbers;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -59,7 +61,10 @@ public class IWorldHandler extends WorldHandler {
             return;
         }
         try {
+            final Location oldLoc = player.getLocation().clone();
+            final Location newLoc = player.getLocation().add(x,y,z);
             internalTeleportMH.invoke(ePlayer.playerConnection, x, y, z, yaw, pitch, EnumSet.allOf(PacketPlayOutPosition.EnumPlayerTeleportFlags.class));
+            Bukkit.getServer().getPluginManager().callEvent(new PlayerMoveEvent(player,oldLoc,newLoc));
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
@@ -78,7 +83,7 @@ public class IWorldHandler extends WorldHandler {
         //*******************************************
         //*         Step two: Get the tiles         *
         //*******************************************
-        World nativeWorld = ((CraftWorld) craft.getW()).getHandle();
+        World nativeWorld = ((CraftWorld) craft.getWorld()).getHandle();
         List<TileHolder> tiles = new ArrayList<>();
         //get the tiles
         for(BlockPosition position : rotatedPositions.keySet()){
@@ -155,7 +160,7 @@ public class IWorldHandler extends WorldHandler {
             positions.add(locationToPosition((movecraftLocation)).b(translateVector));
 
         }
-        World oldNativeWorld = ((CraftWorld) craft.getW()).getHandle();
+        World oldNativeWorld = ((CraftWorld) craft.getWorld()).getHandle();
         World nativeWorld = ((CraftWorld) world).getHandle();
         //*******************************************
         //*         Step two: Get the tiles         *
@@ -271,17 +276,21 @@ public class IWorldHandler extends WorldHandler {
 
         chunkSection.setType(position.getX()&15, position.getY()&15, position.getZ()&15, data);
         world.notify(position, data, data, 3);
+        world.c(EnumSkyBlock.BLOCK, position);
         chunk.markDirty();
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Material material, byte data){
+    public void setBlockFast(@NotNull Location location, @NotNull Material material, Object data){
         setBlockFast(location, Rotation.NONE, material, data);
     }
 
     @Override
-    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, byte data) {
-        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData(data);
+    public void setBlockFast(@NotNull Location location, @NotNull Rotation rotation, @NotNull Material material, Object data) {
+        if (!(data instanceof Byte)) {
+            throw new IllegalArgumentException("data must be byte value for v1_12_R1");
+        }
+        IBlockData blockData =  CraftMagicNumbers.getBlock(material).fromLegacyData((byte) data);
         blockData = blockData.a(ROTATION[rotation.ordinal()]);
         World world = ((CraftWorld)(location.getWorld())).getHandle();
         BlockPosition blockPosition = locationToPosition(bukkit2MovecraftLoc(location));

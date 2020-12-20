@@ -3,6 +3,7 @@ package net.countercraft.movecraft.utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Constructor;
@@ -12,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 /**
  * Code taken with permission from MicleBrick
@@ -21,11 +23,14 @@ public class TeleportUtils {
     private static Set<Object> teleportFlags;
 
     private static Constructor packetConstructor;
+    private static Constructor vehiclePacketConstructor;
     private static Constructor vec3D;
 
     private static Method position;
     private static Method closeInventory;
     private static Method sendMethod;
+    private static Method getBukkitEntity;
+    private static Method spawnIn;
 
     private static Field connectionField;
     private static Field justTeleportedField;
@@ -48,12 +53,16 @@ public class TeleportUtils {
         Class<?> entityHuman = getNmsClass("EntityHuman");
         Class<?> connectionClass = getNmsClass("PlayerConnection");
         Class<?> packetClass = getNmsClass("PacketPlayOutPosition");
+        Class<?> vehiclePacket = getNmsClass("PacketPlayOutVehicleMove");
         Class<?> vecClass = getNmsClass("Vec3D");
+        Class<?> worldClass = getNmsClass("World");
         try {
             sendMethod = connectionClass.getMethod("sendPacket", packet);
 
             position = entity.getDeclaredMethod("setLocation", Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE);
             closeInventory = entityPlayer.getDeclaredMethod("closeInventory");
+            getBukkitEntity = entity.getDeclaredMethod("getBukkitEntity");
+            spawnIn = entity.getDeclaredMethod("spawnIn", worldClass);
 
             yaw = getField(entity, "yaw");
             pitch = getField(entity, "pitch");
@@ -63,6 +72,8 @@ public class TeleportUtils {
 
             packetConstructor = packetClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE, Set.class, Integer.TYPE);
             vec3D = vecClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE);
+
+            vehiclePacketConstructor = vehiclePacket.getConstructor(entity);
 
             Object[] enumObjects = getNmsClass("PacketPlayOutPosition$EnumPlayerTeleportFlags").getEnumConstants();
             teleportFlags = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(enumObjects[4], enumObjects[3])));
@@ -86,14 +97,39 @@ public class TeleportUtils {
         return field;
     }
 
+    public static void teleportEntity(Entity entity, Location location) {
+        double x = location.getX();
+        double y = location.getY();
+        double z = location.getZ();
+        Entity vehicle = entity.getVehicle();
+        Object handle = getHandle(vehicle == null ? entity : vehicle);
+        try {
+            if (location.getWorld() != entity.getWorld()) {
+                Method wHandle = location.getWorld().getClass().getDeclaredMethod("getHandle");
+                spawnIn.invoke(handle, wHandle.invoke(location.getWorld()));
+            }
+            position.invoke(handle, x,y,z, location.getYaw(), location.getPitch());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void teleport(Player player, Location location, float yawChange) {
         double x = location.getX();
         double y = location.getY();
         double z = location.getZ();
-        Object handle = getHandle(player);
+        Entity vehicle = player.getVehicle();
+        Object handle = getHandle(vehicle == null ? player : vehicle);
+        Object pHandle = getHandle(player);
+
         try {
+            if (location.getWorld() != player.getWorld()) {
+                Method wHandle = location.getWorld().getClass().getDeclaredMethod("getHandle");
+                spawnIn.invoke(handle, wHandle.invoke(location.getWorld()));
+            }
             position.invoke(handle, x,y,z, yaw.get(handle), pitch.get(handle));
-            Object connection = connectionField.get(handle);
+            yaw.set(handle, yaw.getFloat(handle) + yawChange);
+            Object connection = connectionField.get(pHandle);
             justTeleportedField.set(connection, true);
             teleportPosField.set(connection, vec3D.newInstance(x, y, z));
             lastPosXField.set(connection, x);
@@ -106,6 +142,24 @@ public class TeleportUtils {
 
             Object packet = packetConstructor.newInstance(x, y, z, yawChange, 0, teleportFlags, teleportAwait);
             sendPacket(packet, player);
+            if (vehicle == null)
+                return;
+            Object vehiclePacket = vehiclePacketConstructor.newInstance(handle);
+            sendPacket(vehiclePacket, player);
+            List<Entity> passengers;
+            try {
+                passengers = (List<Entity>) Entity.class.getDeclaredMethod("getPassengers").invoke(vehicle);
+            } catch (Exception e) {
+                return;
+            }
+            for (Entity pass : passengers) {
+                if (pass.getType() != EntityType.PLAYER || pass.equals(player)) {
+                    continue;
+                }
+                Player p = (Player) pass;
+                sendPacket(packet, p);
+                sendPacket(vehiclePacket, p);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

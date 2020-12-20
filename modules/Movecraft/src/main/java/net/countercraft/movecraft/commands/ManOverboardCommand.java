@@ -1,6 +1,5 @@
 package net.countercraft.movecraft.commands;
 
-import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
@@ -34,8 +33,21 @@ public class ManOverboardCommand implements CommandExecutor{
             return true;
         }
 
-        Location telPoint = craft.getCrewSigns().containsKey(player.getUniqueId()) ? craft.getCrewSigns().get(player.getUniqueId()) : getCraftTeleportPoint(craft);
-        if (craft.getW() != player.getWorld()) {
+        Location telPoint;
+        if (craft.getCrewSigns().containsKey(player.getUniqueId())){
+            telPoint = craft.getCrewSigns().get(player.getUniqueId());
+            final Vector[] SHIFTS = {new Vector(1,0,0), new Vector(-1,0,0),new Vector(0,0,1),new Vector(0,0,-1)};
+            for (Vector shift : SHIFTS){
+                if (!telPoint.add(shift).getBlock().getType().name().endsWith("AIR")){
+                    continue;
+                }
+                telPoint = telPoint.add(shift);
+                break;
+            }
+        } else {
+            telPoint = getCraftTeleportPoint(craft);
+        }
+        if (craft.getWorld() != player.getWorld()) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("ManOverboard - Other World"));
             return true;
         }
@@ -50,7 +62,6 @@ public class ManOverboardCommand implements CommandExecutor{
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("ManOverboard - Distance Too Far"));
             return true;
         }
-
         if (craft.getDisabled() || craft.getSinking() || CraftManager.getInstance().getPlayerFromCraft(craft) == null) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("ManOverboard - Disabled"));
             return true;

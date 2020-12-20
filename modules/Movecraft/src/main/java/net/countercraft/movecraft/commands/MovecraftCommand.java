@@ -3,6 +3,7 @@ package net.countercraft.movecraft.commands;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -36,6 +37,14 @@ public class MovecraftCommand implements TabExecutor {
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Movecraft - Reloaded Types"));
             return true;
         }
+        if (args.length == 1 && args[0].equalsIgnoreCase("reloadplugin") && commandSender.hasPermission("movecraft.commands.movecraft.reloadconfig")){
+            Movecraft.getInstance().reloadConfig();
+            Movecraft.getInstance().getLogger().info("Reloading Movecraft");
+            Bukkit.getServer().getPluginManager().disablePlugin(Movecraft.getInstance());
+            Bukkit.getServer().getPluginManager().enablePlugin(Movecraft.getInstance());
+            commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + "Reloaded Movecraft");
+            return true;
+        }
         commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Movecraft - Invalid Argument"));
         return true;
 
@@ -47,6 +56,7 @@ public class MovecraftCommand implements TabExecutor {
             return Collections.emptyList();
         List<String> completions = new ArrayList<>();
         completions.add("reloadtypes");
+        completions.add("reloadplugin");
         List<String> returnValues = new ArrayList<>();
         for(String completion : completions)
             if(completion.toLowerCase().startsWith(args[args.length-1].toLowerCase()))

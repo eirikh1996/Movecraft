@@ -38,8 +38,8 @@ public class ICraft extends Craft {
     @Override
     public void translate(@NotNull World world, int dx, int dy, int dz) {
         // check to see if the craft is trying to move in a direction not permitted by the type
-        if (!world.equals(w) && !(this.getType().getCanSwitchWorld() || type.getDisableTeleportToWorlds().contains(world.getName())) && !this.getSinking()) {
-            world = w;
+        if (!world.equals(this.world) && !(this.getType().getCanSwitchWorld() || type.getDisableTeleportToWorlds().contains(world.getName())) && !this.getSinking()) {
+            world = this.world;
         }
         if (!this.getType().allowHorizontalMovement() && !this.getSinking()) {
             dx = 0;
@@ -48,7 +48,7 @@ public class ICraft extends Craft {
         if (!this.getType().allowVerticalMovement() && !this.getSinking()) {
             dy = 0;
         }
-        if (dx == 0 && dy == 0 && dz == 0 && world.equals(w)) {
+        if (dx == 0 && dy == 0 && dz == 0 && world.equals(this.world)) {
             return;
         }
 
@@ -57,8 +57,12 @@ public class ICraft extends Craft {
                 return;
             }
         }
+        if (isTranslating())
+            return;
+        setTranslating(true);
 
         Movecraft.getInstance().getAsyncManager().submitTask(new TranslationTask(this, world, dx, dy, dz), this);
+
     }
 
     @Override
@@ -69,28 +73,38 @@ public class ICraft extends Craft {
             return;
         }
         setLastRotateTime(System.nanoTime());
-        Movecraft.getInstance().getAsyncManager().submitTask(new RotationTask(this, originPoint, rotation, this.getW()), this);
+        RotationTask task = new RotationTask(this, originPoint, rotation, this.getWorld());
+        Movecraft.getInstance().getAsyncManager().submitTask(task, this);
     }
 
     @Override
     public void rotate(Rotation rotation, MovecraftLocation originPoint, boolean isSubCraft) {
-        Movecraft.getInstance().getAsyncManager().submitTask(new RotationTask(this, originPoint, rotation, this.getW(), isSubCraft), this);
+        RotationTask task = new RotationTask(this, originPoint, rotation, this.getWorld(), isSubCraft);
+        Movecraft.getInstance().getAsyncManager().submitTask(task, this);
     }
 
     @NotNull
     @Override
     public Set<Craft> getContacts() {
         final Set<Craft> contacts = new HashSet<>();
-        for (Craft contact : CraftManager.getInstance().getCraftsInWorld(w)) {
+        for (Craft contact : CraftManager.getInstance().getCraftsInWorld(world)) {
+            if (contact.getNotificationPlayer() == this.getNotificationPlayer()) {
+                continue;
+            }
             MovecraftLocation ccenter = this.getHitBox().getMidPoint();
             MovecraftLocation tcenter = contact.getHitBox().getMidPoint();
             int distsquared = ccenter.distanceSquared(tcenter);
-            int detectionRange = (int) (contact.getOrigBlockCount() * (tcenter.getY() > 65 ? contact.getType().getDetectionMultiplier(contact.getW()) : contact.getType().getUnderwaterDetectionMultiplier(contact.getW())));
+            int detectionRange = (int) (contact.getOrigBlockCount() * (tcenter.getY() > 65 ? contact.getType().getDetectionMultiplier(world) : contact.getType().getUnderwaterDetectionMultiplier(world)));
             detectionRange = detectionRange * 10;
-            if (distsquared > detectionRange || contact.getNotificationPlayer() == this.getNotificationPlayer()) {
-                continue;
+            int staticDetectionRange = (int) ((tcenter.getY() > 65 ? contact.getType().getStaticDetectionRange(world) : contact.getType().getUnderwaterStaticDetectionRange(world)));
+            staticDetectionRange = staticDetectionRange * staticDetectionRange;
+            if (distsquared <= staticDetectionRange)  {
+                contacts.add(contact);
             }
-            contacts.add(contact);
+            if (distsquared <= detectionRange) {
+                contacts.add(contact);
+            }
+
         }
         return contacts;
     }
@@ -98,7 +112,7 @@ public class ICraft extends Craft {
     @Override
     public void resetSigns(@NotNull Sign clicked) {
         for (final MovecraftLocation ml : hitBox) {
-            final Block b = ml.toBukkit(w).getBlock();
+            final Block b = ml.toBukkit(world).getBlock();
             if (!(b.getState() instanceof Sign)) {
                 continue;
             }

@@ -1,5 +1,6 @@
 package net.countercraft.movecraft.warfare.siege;
 
+import org.bukkit.boss.BossBar;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Siege {
     @NotNull private final List<Integer> daysOfWeek;
     @NotNull private final List<String> craftsToWin, commandsOnStart, commandsOnLose, commandsOnWin;
-    private final int scheduleStart, scheduleEnd, delayBeforeStart, duration, dailyIncome, cost;
+    private final int scheduleStart, scheduleEnd, delayBeforeStart, duration, dailyIncome, cost, cooldown;
     @NotNull private final String attackRegion, captureRegion, name;
     @NotNull private final AtomicReference<SiegeStage> stage;
     private long startTime;
@@ -18,14 +19,15 @@ public class Siege {
     private final boolean doubleCostPerOwnedSiegeRegion;
     private boolean justCommenced;
     private UUID playerUUID;
+    private BossBar progressBar;
 
     public Siege(
             @NotNull String name, @NotNull String captureRegion, @NotNull String attackRegion,
             int scheduleStart, int scheduleEnd, int delayBeforeStart, int duration, int dailyIncome, int cost,
             boolean doubleCostPerOwnedSiegeRegion,
             @NotNull List<Integer> daysOfWeek,
-            @NotNull List<String> craftsToWin, @NotNull List<String> commandsOnStart, @NotNull List<String> commandsOnWin, @NotNull List<String> commandsOnLose
-    ) {
+            @NotNull List<String> craftsToWin, @NotNull List<String> commandsOnStart, @NotNull List<String> commandsOnWin, @NotNull List<String> commandsOnLose,
+            int cooldown) {
         this.commandsOnWin = commandsOnWin;
         this.commandsOnLose = commandsOnLose;
         this.craftsToWin = craftsToWin;
@@ -41,6 +43,7 @@ public class Siege {
         this.captureRegion = captureRegion;
         this.name = name;
         this.commandsOnStart = commandsOnStart;
+        this.cooldown = cooldown;
         startTime = 0;
         lastUpdate = 0;
         stage = new AtomicReference<>();
@@ -158,8 +161,20 @@ public class Siege {
         return name;
     }
 
+    public BossBar getProgressBar() {
+        return progressBar;
+    }
+
+    public void setProgressBar(BossBar progressBar) {
+        this.progressBar = progressBar;
+    }
+
     public boolean isJustCommenced() {
         return justCommenced;
+    }
+
+    public int getCooldown() {
+        return cooldown;
     }
 
     void setJustCommenced(boolean justCommenced) {

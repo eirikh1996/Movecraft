@@ -17,12 +17,14 @@
 
 package net.countercraft.movecraft.listener;
 
+
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.BlockContainer;
 import net.countercraft.movecraft.utils.MathUtils;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -30,10 +32,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -42,8 +44,8 @@ public class PlayerListener implements Listener {
 
     private String checkCraftBorders(Craft craft) {
         String ret = "";
-        final int[] ALLOWED_BLOCKS = craft.getType().getAllowedBlocks();
-        final int[] FORBIDDEN_BLOCKS = craft.getType().getForbiddenBlocks();
+        final BlockContainer ALLOWED_BLOCKS = craft.getType().getAllowedBlocks();
+        final BlockContainer FORBIDDEN_BLOCKS = craft.getType().getForbiddenBlocks();
         final MovecraftLocation[] SHIFTS = {
                 //x
                 new MovecraftLocation(-1, 0, 0),
@@ -71,18 +73,17 @@ public class PlayerListener implements Listener {
                 if (craft.getHitBox().contains(test)){
                     continue;
                 }
-                Block testBlock = test.toBukkit(craft.getW()).getBlock();
-                int typeID = testBlock.getTypeId();
-                int metaData = testBlock.getData();
-                int shiftedID = 10000 + (typeID << 4) + metaData;
+                Block testBlock = test.toBukkit(craft.getWorld()).getBlock();
+                Material type = testBlock.getType();
+                byte metaData = testBlock.getData();
                 //Break the loop if an allowed block is found adjacent to the craft's hitbox
-                if (Arrays.binarySearch(ALLOWED_BLOCKS, typeID) >= 0 || Arrays.binarySearch(ALLOWED_BLOCKS, shiftedID) >= 0){
-                    ret = "@ " + test.toString() + " " + Material.getMaterial(typeID).name();
+                if (ALLOWED_BLOCKS.contains(type) || ALLOWED_BLOCKS.contains(type, metaData)){
+                    ret = "@ " + test.toString() + " " + type.name();
                     break;
                 }
                 //Do the same if a forbidden block is found
-                else if (Arrays.binarySearch(FORBIDDEN_BLOCKS, typeID) >= 0 || Arrays.binarySearch(FORBIDDEN_BLOCKS, shiftedID) >= 0){
-                    ret = "@ " + test.toString() + " " + Material.getMaterial(typeID).name();
+                else if (FORBIDDEN_BLOCKS.contains(type) || FORBIDDEN_BLOCKS.contains(type, metaData)){
+                    ret = "@ " + test.toString() + " " + type.name();
                     break;
                 }
             }
@@ -100,12 +101,17 @@ public class PlayerListener implements Listener {
         CraftManager.getInstance().removeCraftByPlayer(e.getPlayer());
     }
 
+
     @EventHandler
     public void onPlayerDeath(EntityDamageByEntityEvent e) {  // changed to death so when you shoot up an airship and hit the pilot, it still sinks
         if (e instanceof Player) {
             Player p = (Player) e;
             CraftManager.getInstance().removeCraft(CraftManager.getInstance().getCraftByPlayer(p), CraftReleaseEvent.Reason.DEATH);
         }
+    }
+
+    public void onPDeath(PlayerDeathEvent event){
+
     }
 
     @EventHandler
@@ -139,7 +145,7 @@ public class PlayerListener implements Listener {
             } else {
                 p.sendMessage(I18nSupport.getInternationalisedString("Release - Player has left craft"));
             }
-            timeToReleaseAfter.put(c, System.currentTimeMillis() + 30000); //30 seconds to release TODO: config
+            timeToReleaseAfter.put(c, System.currentTimeMillis() + (Settings.ManOverboardTimeout * 1000)); //30 seconds to release TODO: config
         }
     }
 }

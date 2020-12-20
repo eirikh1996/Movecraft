@@ -3,9 +3,9 @@ package net.countercraft.movecraft.sign;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.SignUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
@@ -22,7 +22,7 @@ public final class TeleportSign implements Listener {
             return;
         }
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        if (!SignUtils.isSign(block)) {
             return;
         }
         Sign sign = (Sign) event.getClickedBlock().getState();
@@ -60,9 +60,9 @@ public final class TeleportSign implements Listener {
         if (c == null || !c.getType().getCanTeleport()) {
             return;
         }
-        long timeSinceLastTeleport = System.currentTimeMillis() - c.getLastTeleportTime();
+        long timeSinceLastTeleport = (System.currentTimeMillis() - c.getLastTeleportTime()) / 1000;
         if (c.getType().getTeleportationCooldown() > 0 && timeSinceLastTeleport < c.getType().getTeleportationCooldown()) {
-            event.getPlayer().sendMessage(String.format(I18nSupport.getInternationalisedString("Teleportation - Cooldown active"), timeSinceLastTeleport));
+            event.getPlayer().sendMessage(String.format(I18nSupport.getInternationalisedString("Teleportation - Cooldown active"), c.getType().getTeleportationCooldown() - timeSinceLastTeleport));
             return;
         }
         int dx = tX - sign.getX();

@@ -1,27 +1,32 @@
 package net.countercraft.movecraft.sign;
 
-import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
+import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.utils.SignUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+
 import java.util.LinkedList;
 
 import static net.countercraft.movecraft.utils.ChatUtils.ERROR_PREFIX;
 
 public final class RemoteSign implements Listener{
     private static final String HEADER = "Remote Sign";
+
+
 
     @EventHandler
     public final void onSignChange(SignChangeEvent event) {
@@ -35,6 +40,14 @@ public final class RemoteSign implements Listener{
             event.setLine(3,"");
             return;
         }
+        else if (event.getLine(1).equalsIgnoreCase("Name:")){
+            event.getPlayer().sendMessage("ERROR: Remote Signs can't target Name: signs!");
+            event.setLine(0,"");
+            event.setLine(1,"");
+            event.setLine(2,"");
+            event.setLine(3,"");
+            return;
+        }
     }
 
     @EventHandler
@@ -43,7 +56,7 @@ public final class RemoteSign implements Listener{
             return;
         }
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        if (!SignUtils.isSign(block)) {
             return;
         }
         Sign sign = (Sign) event.getClickedBlock().getState();
@@ -74,6 +87,7 @@ public final class RemoteSign implements Listener{
         }
 
         String targetText = ChatColor.stripColor(sign.getLine(1));
+
         if(targetText.equalsIgnoreCase(HEADER)) {
             event.getPlayer().sendMessage(ERROR_PREFIX+I18nSupport.getInternationalisedString("Remote Sign - Cannot remote another Remote Sign"));
             return;
@@ -88,11 +102,10 @@ public final class RemoteSign implements Listener{
         boolean firstError = true;
         for (MovecraftLocation tloc : foundCraft.getHitBox()) {
             Block tb = event.getClickedBlock().getWorld().getBlockAt(tloc.getX(), tloc.getY(), tloc.getZ());
-            if (!tb.getType().equals(Material.SIGN_POST) && !tb.getType().equals(Material.WALL_SIGN)) {
+            if (!(tb.getState() instanceof Sign)) {
                 continue;
             }
             Sign ts = (Sign) tb.getState();
-
             if (isEqualSign(ts, targetText)) {
                 if (isForbidden(ts)) {
                     if (firstError) {
@@ -107,12 +120,31 @@ public final class RemoteSign implements Listener{
         }
         if (!firstError) {
             return;
+
         }
         else if (foundLocations.isEmpty()) {
             event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Remote Sign - Could not find target sign"));
             return;
         }
-
+        new BukkitRunnable()
+        {
+            @Override
+            public void run() {
+                MovecraftLocation foundLoc = foundLocations.poll();
+                Block newBlock = event.getClickedBlock().getWorld().getBlockAt(foundLoc.getX(), foundLoc.getY(), foundLoc.getZ());
+                Sign foundSign = (Sign) newBlock.getState();
+                boolean inverted = false;//set to true if target name has an ! in front of the text
+                //check Remote sign if the target strings are inverted
+                for (String line : foundSign.getLines()){
+                    if (line == null)
+                        continue;
+                    //if target line is prefixed with an exclamation point, it will invert the action of the Remote sign
+                    if (!line.equals("!" + targetText))
+                        continue;
+                    inverted = true;
+                    break;
+                }
+                PlayerInteractEvent newEvent = null;
         if (Settings.MaxRemoteSigns > -1) {
             int foundLocCount = foundLocations.size();
             if(foundLocCount > Settings.MaxRemoteSigns) {
@@ -121,22 +153,45 @@ public final class RemoteSign implements Listener{
             }
         }
 
-        for (MovecraftLocation foundLoc : foundLocations) {
-            Block newBlock = event.getClickedBlock().getWorld().getBlockAt(foundLoc.getX(), foundLoc.getY(), foundLoc.getZ());
+                //Now invert the action to the opposite one if set to invert
+                if (inverted) {
+                    Action action = null;
+                    if (event.getAction() == Action.RIGHT_CLICK_BLOCK){
+                        action = Action.LEFT_CLICK_BLOCK;
+                    } else if (event.getAction() == Action.LEFT_CLICK_BLOCK){
+                        action = Action.RIGHT_CLICK_BLOCK;
+                    }
+                    if (action != null){
+                        newEvent = new PlayerInteractEvent(event.getPlayer(), action, event.getItem(), newBlock, event.getBlockFace());
+                    }
+                }
+                //Otherwise use the same action as on the clicked remote sign
+                else {
+                    newEvent = new PlayerInteractEvent(event.getPlayer(), event.getAction(), event.getItem(), newBlock, event.getBlockFace());
+                }
+                //TODO: DON'T DO THIS
+                Bukkit.getServer().getPluginManager().callEvent(newEvent);
+                if (foundLocations.isEmpty()){
+                    cancel();
+                }
+            }
 
-            PlayerInteractEvent newEvent = new PlayerInteractEvent(event.getPlayer(), event.getAction(), event.getItem(), newBlock, event.getBlockFace());
 
-            //TODO: DON'T DO THIS
-            Bukkit.getServer().getPluginManager().callEvent(newEvent);
-        }
+        }.runTaskTimer(Movecraft.getInstance(),0,11);
         
         event.setCancelled(true);
     }
     private boolean isEqualSign(Sign test, String target) {
-        return !ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(HEADER) && ( ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(target)
+
+        return !ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(HEADER) && (
+                ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase(target)
                 || ChatColor.stripColor(test.getLine(1)).equalsIgnoreCase(target)
                 || ChatColor.stripColor(test.getLine(2)).equalsIgnoreCase(target)
-                || ChatColor.stripColor(test.getLine(3)).equalsIgnoreCase(target) );
+                || ChatColor.stripColor(test.getLine(3)).equalsIgnoreCase(target)
+                ||ChatColor.stripColor(test.getLine(0)).equalsIgnoreCase("!"+target)
+                || ChatColor.stripColor(test.getLine(1)).equalsIgnoreCase("!"+target)
+                || ChatColor.stripColor(test.getLine(2)).equalsIgnoreCase("!"+target)
+                || ChatColor.stripColor(test.getLine(3)).equalsIgnoreCase("!"+target));
     }
     private boolean isForbidden(Sign test) {
         for (int i = 0; i < 4; i++) {
@@ -145,5 +200,8 @@ public final class RemoteSign implements Listener{
                 return true;
         }
         return false;
+    }
+    private boolean invertAction(String line){
+        return line.charAt(0) == '!';
     }
 }

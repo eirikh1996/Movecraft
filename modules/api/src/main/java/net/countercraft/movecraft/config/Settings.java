@@ -26,13 +26,15 @@ import java.util.List;
 import java.util.Map;
 
 public class Settings {
+
+    public static boolean CheckForUpdates = true;
     public static boolean RestrictSiBsToRegions = false;
     public static boolean IGNORE_RESET = false;
     public static boolean Debug = false;
     public static int THREAD_POOL_SIZE = 5;
-    public static List<Integer> DATA_BLOCKS;
+    public static List<Material> DATA_BLOCKS;
     public static String LOCALE;
-    public static int PilotTool = 280;
+    public static Material PilotTool = Material.STICK;
     public static int SilhouetteViewDistance = 200;
     public static int SilhouetteBlockCount = 20;
     public static boolean CompatibilityMode = false;
@@ -45,6 +47,8 @@ public class Settings {
     public static boolean DisableSpillProtection = false;
     public static boolean RequireCreatePerm = false;
     public static boolean RequireNamePerm = false;
+    public static boolean RequireSneakingForDirectControl = false;
+    public static HashSet<String> ForbiddenRemoteSigns;
     public static int FadeWrecksAfter = 0;
     public static int FadeTickCooldown = 20;
     public static double FadePercentageOfWreckPerCycle = 10.0;
@@ -67,9 +71,14 @@ public class Settings {
     public static boolean WGCustomFlagsUseSinkFlag = false;
     public static boolean TownyBlockMoveOnSwitchPerm = false;
     public static boolean TownyBlockSinkOnNoPVP = false;
+
     public static Map<String, TownyWorldHeightLimits> TownProtectionHeightLimits;
     public static boolean CraftsUseNetherPortals = false;
     public static boolean IsPaper = false;
+    public static boolean IsPre1_9 = false;
+    public static boolean IsLegacy = true; //false if version is 1.13 or higher
+    public static boolean is1_14 = false;
+    public static boolean UseFAWE = false;
 
     public static boolean AssaultEnable;
     public static double AssaultDamagesCapPercent;
@@ -80,12 +89,13 @@ public class Settings {
     public static int AssaultRequiredOwnersOnline;
     public static double AssaultCostPercent;
     public static double AssaultMaxBalance;
-    public static double AssaultOwnerWeightPercent;
-    public static double AssaultMemberWeightPercent;
-    public static HashSet<Integer> AssaultDestroyableBlocks;
+    public static int AssaultOwnerWeightPercent;
+    public static int AssaultMemberWeightPercent;
+    public static HashSet<Material> AssaultDestroyableBlocks = new HashSet<>();
     public static int AssaultDamagesPerBlock;
-    public static HashSet<Integer> DisableShadowBlocks;
-    public static HashSet<String> ForbiddenRemoteSigns;
+    public static HashSet<Material> DisableShadowBlocks = new HashSet<>();
 
     public static boolean SiegeEnable;
+    public static String SiegeTimeZone;
+    public static long TracerMinDistanceSqrd;
 }

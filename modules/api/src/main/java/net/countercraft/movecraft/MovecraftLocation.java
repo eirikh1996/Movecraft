@@ -19,6 +19,8 @@ package net.countercraft.movecraft;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.NotNull;
 
 import static net.countercraft.movecraft.utils.BitMath.*;
@@ -26,7 +28,7 @@ import static net.countercraft.movecraft.utils.BitMath.*;
 /**
  * Represents a Block aligned coordinate triplet.
  */
-final public class MovecraftLocation {
+final public class MovecraftLocation implements Comparable<MovecraftLocation> {
     private final int x, y, z;
 
     public MovecraftLocation(int x, int y, int z) {
@@ -107,6 +109,7 @@ final public class MovecraftLocation {
     public double distance(MovecraftLocation other) {
         return Math.sqrt(distanceSquared(other));
     }
+
     public Location toBukkit(World world){
         return new Location(world, this.x, this.y, this.z);
     }
@@ -114,12 +117,19 @@ final public class MovecraftLocation {
     public static Location toBukkit(World world, MovecraftLocation location){
         return new Location(world, location.x, location.y, location.z);
     }
+    public static MovecraftLocation fromVector(Vector vector){
+        return new MovecraftLocation(vector.getBlockX(),vector.getBlockY(),vector.getBlockZ());
+    }
 
     @Override
     public String toString(){
         return "(" + x + "," + y + "," + z +")";
     }
 
+    @Override
+    public int compareTo(@NotNull MovecraftLocation o) {
+        return getX() - o.getX() + getY() - o.getY() + getZ() - o.getZ();
+    }
 
     private static final long BITS_26 = mask(26);
     private static final long BITS_12 = mask(12);

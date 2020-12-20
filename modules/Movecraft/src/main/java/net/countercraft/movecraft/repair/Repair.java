@@ -42,6 +42,10 @@ public final class Repair {
         return name;
     }
 
+    public Craft getCraft() {
+        return craft;
+    }
+
     public UUID getPlayerUUID() {
         return playerUUID;
     }
@@ -62,14 +66,6 @@ public final class Repair {
         return signLoc;
     }
 
-    public void setTicksSinceStart(long ticksSinceStart){
-        this.ticksSinceStart = ticksSinceStart;
-    }
-
-    public Craft getCraft() {
-        return craft;
-    }
-
     public BossBar getProgressBar() {
         return progressBar;
     }
@@ -80,6 +76,10 @@ public final class Repair {
 
     public long getTicksSinceStart() {
         return ticksSinceStart;
+    }
+
+    public void setTicksSinceStart(long ticksSinceStart) {
+        this.ticksSinceStart = ticksSinceStart;
     }
 
     public LinkedList<UpdateCommand> getFragileBlockUpdateCommands() {

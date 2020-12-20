@@ -9,7 +9,8 @@ import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.events.CraftDetectEvent;
 import net.countercraft.movecraft.events.SignTranslateEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.utils.LegacyUtils;
+import net.countercraft.movecraft.utils.SignUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -23,8 +24,13 @@ import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 
-public class CrewSign implements Listener {
+import java.util.Arrays;
 
+public class CrewSign implements Listener {
+    //As of 1.13, each bed color have their own values
+    final Material[] beds = !Settings.IsLegacy ? new Material[]{Material.CYAN_BED, Material.BLACK_BED, Material.BLUE_BED,
+    Material.BROWN_BED, Material.GRAY_BED, Material.GREEN_BED, Material.LIGHT_BLUE_BED, Material.LIGHT_GRAY_BED, Material.LIME_BED, Material.MAGENTA_BED,
+    Material.ORANGE_BED, Material.PINK_BED, Material.PURPLE_BED, Material.RED_BED, Material.WHITE_BED, Material.YELLOW_BED} : new Material[]{LegacyUtils.BED_BLOCK};
     @EventHandler
     public final void onSignChange(SignChangeEvent event) {
         if (!event.getLine(0).equalsIgnoreCase("Crew:")) {
@@ -47,8 +53,9 @@ public class CrewSign implements Listener {
         }
         Location valid = null;
         for(MovecraftLocation location : event.getLocations()){
-            Location bedLoc = location.toBukkit(craft.getW()).subtract(0,1,0);
-            if (craft.getW().getBlockAt(bedLoc).getType().equals(Material.BED_BLOCK)) {
+            Location bedLoc = location.toBukkit(craft.getWorld()).subtract(0,1,0);
+            Material bedType = craft.getWorld().getBlockAt(bedLoc).getType();
+            if (Settings.IsLegacy ? bedType.equals(LegacyUtils.BED_BLOCK) : bedType.name().endsWith("_BED")) {
                 valid = bedLoc;
                 break;
             }
@@ -66,14 +73,15 @@ public class CrewSign implements Listener {
         }
 
         Player player = event.getPlayer();
-        if (!player.isSneaking() || !(event.getClickedBlock().getState() instanceof Sign)) {
+        final Block block = event.getClickedBlock();
+        if (!player.isSneaking() || !SignUtils.isSign(block)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) block.getState();
         if (!sign.getLine(0).equalsIgnoreCase("Crew:")) {
             return;
         }
-        if (!sign.getBlock().getRelative(0,-1,0).getType().equals(Material.BED_BLOCK)) {
+        if (Settings.IsLegacy ? !sign.getBlock().getRelative(0,-1,0).getType().equals(LegacyUtils.BED_BLOCK) : Arrays.binarySearch(beds, sign.getBlock().getRelative(0,-1,0).getType()) < 0) {
             player.sendMessage(I18nSupport.getInternationalisedString("CrewSign - Need Bed Below"));
             return;
         }
@@ -107,14 +115,20 @@ public class CrewSign implements Listener {
         }
         player.sendMessage(I18nSupport.getInternationalisedString("CrewSign - Respawn"));
         Location respawnLoc = craft.getCrewSigns().get(player.getUniqueId());
-        if (!respawnLoc.getBlock().getType().equals(Material.BED_BLOCK)){
+        Material test = respawnLoc.getBlock().getType();
+        final boolean hasBed = Settings.IsLegacy ? test == LegacyUtils.BED_BLOCK : test.name().endsWith("_BED");
+        if (Settings.Debug){
+            Bukkit.broadcastMessage("Has bed: " + hasBed + ". Found type at " + respawnLoc.toVector() + ": " + test.name());
+        }
+
+        if (!hasBed){
             return;
         }
         //Attempt to find an empty location to spawn the player
         boolean locationFound = false;
         for(int i = -1; i < 2; i++) {
            for(int j = -1; j < 2; j++) {
-               Location testLoc = new Location(craft.getW(), respawnLoc.getX()+i, respawnLoc.getY(), respawnLoc.getZ()+j);
+               Location testLoc = new Location(craft.getWorld(), respawnLoc.getX()+i, respawnLoc.getY(), respawnLoc.getZ()+j);
                if(testLoc.getBlock().getType().equals(Material.AIR)) {
                    if(testLoc.getBlock().getRelative(BlockFace.UP).isEmpty() && !testLoc.getBlock().getRelative(BlockFace.DOWN).isEmpty()) {
                         respawnLoc = testLoc;
@@ -133,15 +147,19 @@ public class CrewSign implements Listener {
 
     @EventHandler
     public void onCraftDetect(CraftDetectEvent event){
-        World world = event.getCraft().getW();
+        World world = event.getCraft().getWorld();
         for(MovecraftLocation location: event.getCraft().getHitBox()){
             Block block = location.toBukkit(world).getBlock();
-            if (block.getType() != Material.WALL_SIGN && block.getType() != Material.SIGN_POST) {
+            if (!(block.getState() instanceof Sign)) {
                 continue;
             }
             Sign sign = (Sign) block.getState();
-            if (ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase("Crew:") && sign.getLocation().subtract(0,1,0).getBlock().getType().equals(Material.BED_BLOCK)) {
-               event.getCraft().getCrewSigns().put(Bukkit.getPlayer(sign.getLine(1)).getUniqueId(),block.getLocation().subtract(0,1,0));
+            if (ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase("Crew:") && Arrays.binarySearch(beds, sign.getLocation().subtract(0,1,0).getBlock().getType()) >= 0) {
+                final Player crew = Bukkit.getPlayer(sign.getLine(1));
+                if (crew == null){
+                    return;
+                }
+               event.getCraft().getCrewSigns().put(crew.getUniqueId(),block.getLocation().subtract(0,1,0));
             }
         }
     }

@@ -4,10 +4,11 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.events.CraftDetectEvent;
+import net.countercraft.movecraft.utils.SignUtils;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,15 +19,16 @@ public final class DescendSign implements Listener{
 
     @EventHandler
     public void onCraftDetect(CraftDetectEvent event){
-        World world = event.getCraft().getW();
+        World world = event.getCraft().getWorld();
         for(MovecraftLocation location: event.getCraft().getHitBox()){
             Block block = location.toBukkit(world).getBlock();
-            if(block.getType() == Material.WALL_SIGN || block.getType() == Material.SIGN_POST){
-                Sign sign = (Sign) block.getState();
-                if (ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase("Descend: ON")) {
-                    sign.setLine(0, "Descend: OFF");
-                    sign.update();
-                }
+            if(!SignUtils.isSign(block)){
+                return;
+            }
+            Sign sign = (Sign) block.getState();
+            if (ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase("Descend: ON")) {
+                sign.setLine(0, "Descend: OFF");
+                sign.update();
             }
         }
     }
@@ -37,7 +39,7 @@ public final class DescendSign implements Listener{
             return;
         }
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        if (!SignUtils.isSign(block)){
             return;
         }
         Sign sign = (Sign) event.getClickedBlock().getState();
@@ -53,7 +55,7 @@ public final class DescendSign implements Listener{
             sign.setLine(0, "Descend: ON");
             sign.update(true);
 
-            c.setCruiseDirection((byte) 0x43);
+            c.setCruiseDirection(BlockFace.DOWN);
             c.setLastCruiseUpdate(System.currentTimeMillis());
             c.setCruising(true);
             c.resetSigns(sign);

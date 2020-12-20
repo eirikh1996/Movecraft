@@ -5,6 +5,14 @@
     <artifactId>movecraft-parent</artifactId>
     <packaging>pom</packaging>
     <version>parent</version>
+    <dependencies>
+        <dependency>
+            <groupId>com.destroystokyo.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.16.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
     <name>Movecraft Parent Pom</name>
     <url>http://github.com/apdevteam/Movecraft</url>
     <properties>
@@ -13,16 +21,32 @@
 
     <modules>
         <module>modules/api</module>
+        <module>modules/v1_8_R3</module>
+        <module>modules/v1_9_R2</module>
         <module>modules/v1_10_R1</module>
         <module>modules/v1_11_R1</module>
         <module>modules/v1_12_R1</module>
+        <module>modules/v1_13_R2</module>
+        <module>modules/v1_14_R1</module>
+        <module>modules/v1_15_R1</module>
+        <module>modules/v1_16_R1</module>
+        <module>modules/v1_16_R2</module>
+        <module>modules/v1_16_R3</module>
+        <module>modules/worldedit/WE6Utils</module>
+        <module>modules/worldedit/WE7Utils</module>
         <module>modules/Movecraft</module>
+
+
     </modules>
 
     <repositories>
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
+        </repository>
+        <repository>
+            <id>papermc</id>
+            <url>https://papermc.io/repo/repository/maven-public/</url>
         </repository>
     </repositories>
 

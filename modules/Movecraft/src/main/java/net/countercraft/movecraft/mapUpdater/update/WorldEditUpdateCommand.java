@@ -6,7 +6,7 @@ import com.sk89q.jnbt.ListTag;
 import com.sk89q.jnbt.Tag;
 import com.sk89q.worldedit.blocks.BaseBlock;
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.utils.Pair;
+import net.countercraft.movecraft.utils.LegacyUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -32,10 +32,11 @@ public class WorldEditUpdateCommand extends UpdateCommand {
         this.data = data;
     }
 
+
     @Override
     public void doUpdate() {
-        world.getBlockAt(location.getX(), location.getY(), location.getZ()).setType(type);
-        world.getBlockAt(location.getX(), location.getY(), location.getZ()).setData(data);
+        world.getBlockAt(location.getX(), location.getY(), location.getZ()).setType(type, false);
+        LegacyUtils.setData(world.getBlockAt(location.getX(), location.getY(), location.getZ()), data);
         Block block = location.toBukkit(world).getBlock();
         // put inventory into dispensers if its a repair
         if (type == Material.DISPENSER){
@@ -75,12 +76,12 @@ public class WorldEditUpdateCommand extends UpdateCommand {
                 if (iStack.getType().equals(Material.WATER_BUCKET)){
                     numWater -= iStack.getAmount();
                 }
-                if (iStack.getType().equals(Material.FIREBALL)){
+                if (iStack.getType().equals(LegacyUtils.FIREBALL)){
                     numFireCharges -= iStack.getAmount();
                 }
             }
             if (numFireCharges > 0) {
-                ItemStack fireItems = new ItemStack(Material.FIREBALL, numFireCharges);
+                ItemStack fireItems = new ItemStack(LegacyUtils.FIREBALL, numFireCharges);
                 disp.getInventory().addItem(fireItems);
             }
             if (numTNT > 0) {
@@ -92,7 +93,7 @@ public class WorldEditUpdateCommand extends UpdateCommand {
                 disp.getInventory().addItem(WaterItems);
             }
         }
-        if (worldEditBaseBlock.getType() == 63 ||worldEditBaseBlock.getType() == 68 ){
+        if (worldEditBaseBlock.getType() == 63 ||worldEditBaseBlock.getType() == 68 ) {
             BlockState state = block.getState();
             if (state instanceof Sign) {
                 Sign s = (Sign) state;
@@ -118,15 +119,14 @@ public class WorldEditUpdateCommand extends UpdateCommand {
                         }
                         line += textComponent.get("text");
                     }
-                    if (i == 1 && line.equalsIgnoreCase("\\\\  ||  /")){
-                        s.setLine(0,"\\  ||  /");
-                        s.setLine(1,"==      ==");
-                        s.setLine(2,"/  ||  \\");
+                    if (i == 1 && line.equalsIgnoreCase("\\\\  ||  /")) {
+                        s.setLine(0, "\\  ||  /");
+                        s.setLine(1, "==      ==");
+                        s.setLine(2, "/  ||  \\");
                         break;
                     }
                     s.setLine(i - 1, line);
                 }
-                s.update(false, false);
             }
         }
         if (type == Material.FURNACE){

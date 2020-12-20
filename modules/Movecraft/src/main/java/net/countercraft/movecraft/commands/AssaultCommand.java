@@ -1,15 +1,19 @@
 package net.countercraft.movecraft.commands;
 
-import com.sk89q.worldedit.Vector;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.protection.flags.DefaultFlag;
+import com.sk89q.worldguard.protection.flags.Flag;
+import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftRepair;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.WorldguardUtils;
 import net.countercraft.movecraft.warfare.assault.Assault;
+import net.countercraft.movecraft.warfare.assault.AssaultBarTask;
 import net.countercraft.movecraft.warfare.assault.AssaultUtils;
 import net.countercraft.movecraft.warfare.siege.Siege;
 import org.bukkit.Bukkit;
@@ -21,6 +25,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.util.Map;
 
@@ -28,6 +33,7 @@ import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFI
 import static net.countercraft.movecraft.warfare.assault.AssaultUtils.getCostToAssault;
 
 public class AssaultCommand implements CommandExecutor{
+
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
         if (!command.getName().equalsIgnoreCase("assault")) {
@@ -42,7 +48,6 @@ public class AssaultCommand implements CommandExecutor{
             return true;
         }
         Player player = (Player) commandSender;
-
         if (!player.hasPermission("movecraft.assault")) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return true;
@@ -51,16 +56,25 @@ public class AssaultCommand implements CommandExecutor{
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Assault - No Region Specified"));
             return true;
         }
-        ProtectedRegion aRegion = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(player.getWorld()).getRegion(args[0]);
+        RegionManager manager = WorldguardUtils.getRegionManager(player.getWorld());
+        ProtectedRegion aRegion = manager.getRegion(args[0]);
+
+
         if (aRegion == null) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Assault - Region Not Found"));
             return true;
         }
         LocalPlayer lp = Movecraft.getInstance().getWorldGuardPlugin().wrapPlayer(player);
-        Map<String, ProtectedRegion> allRegions = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(player.getWorld()).getRegions();
+        Map<String, ProtectedRegion> allRegions = WorldguardUtils.getRegionManager(player.getWorld()).getRegions();
+        Flag flag;
+        if (Settings.IsLegacy){
+            flag = DefaultFlag.TNT;
+        } else {
+            flag = Flags.TNT;
+        }
         boolean foundOwnedRegion = false;
         for (ProtectedRegion iRegion : allRegions.values()) {
-            if (iRegion.isOwner(lp) && iRegion.getFlag(DefaultFlag.TNT) == StateFlag.State.DENY) {
+            if (iRegion.isOwner(lp) && iRegion.getFlag(flag) == StateFlag.State.DENY) {
                 foundOwnedRegion = true;
                 break;
             }
@@ -79,7 +93,7 @@ public class AssaultCommand implements CommandExecutor{
         }
         // a region can only be assaulted if it disables TNT, this is to prevent child regions or sub regions from being assaulted
         // regions with no owners can not be assaulted
-        if (aRegion.getFlag(DefaultFlag.TNT) != StateFlag.State.DENY || aRegion.getOwners().size() == 0)
+        if (aRegion.getFlag(flag) != StateFlag.State.DENY || aRegion.getOwners().size() == 0)
             canBeAssaulted = false;
 
         {
@@ -98,7 +112,8 @@ public class AssaultCommand implements CommandExecutor{
                 }
             }
         }
-        if (!AssaultUtils.areDefendersOnline(aRegion)) {
+        boolean areDefendersOnline = AssaultUtils.areDefendersOnline(aRegion);
+        if (!areDefendersOnline) {
             canBeAssaulted = false;
         }
         if (aRegion.isMember(lp)) {
@@ -120,13 +135,14 @@ public class AssaultCommand implements CommandExecutor{
             return true;
         }
 //			if(aRegion.getType() instanceof ProtectedCuboidRegion) { // Originally I wasn't going to do non-cubes, but we'll try it and see how it goes. In theory it may repair more than it should but... meh...
-        if (!MovecraftRepair.getInstance().saveRegionRepairState(player.getWorld(), aRegion)){
+        if (!Movecraft.getInstance().getMovecraftRepair().saveRegionRepairState(player.getWorld(), aRegion)){
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Repair - Could not save file"));
             return true;
         }
         Vector min = new Vector(aRegion.getMinimumPoint().getBlockX(), aRegion.getMinimumPoint().getBlockY(), aRegion.getMinimumPoint().getBlockZ());
         Vector max = new Vector(aRegion.getMaximumPoint().getBlockX(), aRegion.getMaximumPoint().getBlockY(), aRegion.getMaximumPoint().getBlockZ());
 
+        /*
         if (max.subtract(min).getBlockX() > 256) {
             if (min.getBlockX() < player.getLocation().getBlockX() - 128) {
                 min = min.setX(player.getLocation().getBlockX() - 128);
@@ -142,6 +158,12 @@ public class AssaultCommand implements CommandExecutor{
             if (max.getBlockZ() > player.getLocation().getBlockZ() + 128) {
                 max = max.setZ(player.getLocation().getBlockZ() + 128);
             }
+        }*/
+        MovecraftRepair movecraftRepair = Movecraft.getInstance().getMovecraftRepair();
+
+        if (!movecraftRepair.saveRegionRepairState(player.getWorld(), aRegion)){
+            player.sendMessage(I18nSupport.getInternationalisedString("Repair - Could not save file"));
+            return true;
         }
 //			} else {
 //				player.sendMessage( String.format( I18nSupport.getInternationalisedString( "This region is not a cuboid - see an admin" ) ) );
@@ -153,28 +175,38 @@ public class AssaultCommand implements CommandExecutor{
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_DEATH, 1, (float) 0.25);
         }
+        AssaultBarTask abTask = new AssaultBarTask(Movecraft.getInstance() ,args[0] ,System.currentTimeMillis());
+        abTask.runTaskTimer(Movecraft.getInstance(), 0, 20);
         final String taskAssaultName = args[0];
         final Player taskPlayer = player;
         final World taskWorld = player.getWorld();
-        final Long taskMaxDamages = (long) AssaultUtils.getMaxDamages(aRegion);
+        final long taskMaxDamages = (long) AssaultUtils.getMaxDamages(aRegion);
         final Vector taskMin = min;
-        final Vector taskMax = max;
+        final org.bukkit.util.Vector taskMax = max;
         //TODO: Make async
         new BukkitRunnable() {
             @Override
             public void run() {
+                abTask.cancel();
+
                 Bukkit.getServer().broadcastMessage(String.format(I18nSupport.getInternationalisedString("Assault - Assault Begun")
                         , taskAssaultName, taskPlayer.getDisplayName()));
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     p.playSound(p.getLocation(), Sound.ENTITY_WITHER_DEATH, 1, 0.25F);
                 }
                 Movecraft.getInstance().getAssaultManager().getAssaults().add(new Assault(taskAssaultName, taskPlayer, taskWorld, System.currentTimeMillis(), taskMaxDamages, taskMin, taskMax));
-                ProtectedRegion tRegion = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(taskWorld).getRegion(taskAssaultName);
-                tRegion.setFlag(DefaultFlag.TNT, StateFlag.State.ALLOW);
+                RegionManager manager1 = WorldguardUtils.getRegionManager(taskWorld);
+                ProtectedRegion tRegion = manager1.getRegion(taskAssaultName);
+
+                tRegion.setFlag(flag, StateFlag.State.ALLOW);
+
             }
-        }.runTaskLater(Movecraft.getInstance(), (20 * Settings.AssaultDelay));
+        }.runTaskLaterAsynchronously(Movecraft.getInstance(), (20 * Settings.AssaultDelay));
         return true;
 
 
+
     }
+
+
 }

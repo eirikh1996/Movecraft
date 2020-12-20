@@ -1,10 +1,10 @@
 package net.countercraft.movecraft.craft;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-
+import net.countercraft.movecraft.Movecraft;
+import net.countercraft.movecraft.MovecraftChunk;
+import net.countercraft.movecraft.MovecraftLocation;
+import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.utils.BitmapHitBox;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -13,26 +13,42 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import net.countercraft.movecraft.Movecraft;
-import net.countercraft.movecraft.MovecraftChunk;
-import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.config.Settings;
-import net.countercraft.movecraft.utils.BitmapHitBox;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 public class ChunkManager implements Listener {
     
     private static List<MovecraftChunk> chunks = new ArrayList<MovecraftChunk>();
+
+    private static Method SET_CANCELLED_CHUNK_EVENT;
+
+    static {
+        try {
+            SET_CANCELLED_CHUNK_EVENT = ChunkUnloadEvent.class.getDeclaredMethod("setCancelled", boolean.class);
+        } catch (NoSuchMethodException e) {
+            SET_CANCELLED_CHUNK_EVENT = null;
+        }
+    }
     
     public static void addChunksToLoad(List<MovecraftChunk> list) {
         
         for (MovecraftChunk chunk : list) {
-            if (!chunks.contains(chunk)) {
-                chunks.add(chunk);
-                if (!chunk.isLoaded()) {
-                    chunk.toBukkit().load(true);
-                }
+            if (chunks.contains(chunk)) {
+                continue;
             }
-            
+            chunks.add(chunk);
+            if (chunk.isLoaded()) {
+                continue;
+            }
+            chunk.toBukkit().load(true);
+            if (Settings.IsLegacy) {
+                continue;
+            }
+            chunk.toBukkit().setForceLoaded(true);
         }
         
         // remove chunks after 10 seconds
@@ -43,20 +59,36 @@ public class ChunkManager implements Listener {
                 ChunkManager.removeChunksToLoad(list);
             }
             
-        }.runTaskLaterAsynchronously(Movecraft.getInstance(), 200L);
+        }.runTaskLater(Movecraft.getInstance(), 200L);
     }
     
     private static void removeChunksToLoad(List<MovecraftChunk> list) {
         for (MovecraftChunk chunk : list) {
             chunks.remove(chunk);
         }
+        if (Settings.IsLegacy)
+            return;
+        Bukkit.getScheduler().callSyncMethod(Movecraft.getInstance(), () -> {
+            for (MovecraftChunk chunk : list) {
+                chunk.toBukkit().setForceLoaded(false);
+            }
+            return true;
+        });
     }
     
     @EventHandler
     public void onChunkUnload(ChunkUnloadEvent event) {
+        if (!Settings.IsLegacy)
+            return;
         Chunk chunk = event.getChunk();
         MovecraftChunk c = new MovecraftChunk(chunk.getX(), chunk.getZ(), chunk.getWorld());
-        if (chunks.contains(c)) event.setCancelled(true);
+        if (chunks.contains(c)) {
+            try {
+                SET_CANCELLED_CHUNK_EVENT.invoke(event, true);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
+        }
     }
     
     

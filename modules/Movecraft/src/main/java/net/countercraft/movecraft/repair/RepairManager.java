@@ -24,13 +24,13 @@ public class RepairManager extends BukkitRunnable {
             }
         }
     }
-
     public void convertOldCraftRepairStates(){
         Map<UUID, ArrayList<File>> confirmedRepairStates = new HashMap<>();
         LinkedList<List<String>> confirmedSimilarPlayerNames = new LinkedList<>();
         //Check in the old RepairStates folder
         File repairStateDir = new File(Movecraft.getInstance().getDataFolder(),"RepairStates");
-        if (!repairStateDir.exists()){
+        File craftRepairStateDir = new File(Movecraft.getInstance().getDataFolder(),"CraftRepairStates");
+        if (!repairStateDir.exists()||!craftRepairStateDir.exists()){
             return;
         }
         int convertedRepairStates = 0;
@@ -75,6 +75,43 @@ public class RepairManager extends BukkitRunnable {
                 confirmedRepairStates.put(owner.getUniqueId(), new ArrayList<>());
             }
             confirmedRepairStates.get(owner.getUniqueId()).add(rs);
+        }
+        File[] craftRepairStates = craftRepairStateDir.listFiles();
+        if (craftRepairStateDir.exists() && (craftRepairStates != null || craftRepairStates.length > 0)){
+            for (File rs : craftRepairStates){
+                List<String> similarPlayerNames = new ArrayList<>();
+                if (!rs.getName().contains(".schematic")){
+                    continue;
+                }
+                String fileName = rs.getName();
+                OfflinePlayer owner = null;
+
+                for (OfflinePlayer op : Bukkit.getOfflinePlayers()){
+                    if (fileName.startsWith(op.getName())){
+                        owner = op;
+                        similarPlayerNames.add(op.getName());
+                    }
+                }
+
+                if (similarPlayerNames.size() > 1) {
+                    String warning = String.join(", ", similarPlayerNames);
+                    Movecraft.getInstance().getLogger().warning(I18nSupport.getInternationalisedString("RepairStateConversion - Similar players found") + warning);
+                    confirmedSimilarPlayerNames.push(similarPlayerNames);
+                    continue;
+                } else if (similarPlayerNames.isEmpty() || owner == null){
+                    repairStatesWithUnknownOwner++;
+                    Movecraft.getInstance().getLogger().warning(String.format(I18nSupport.getInternationalisedString("Repair - Invalid Player Name"), fileName));
+                    continue;
+                }
+                if (confirmedRepairStates.containsKey(owner.getUniqueId())) {
+                    confirmedRepairStates.get(owner.getUniqueId()).add(rs);
+                } else {
+                    confirmedRepairStates.put(owner.getUniqueId(), new ArrayList<>());
+                    confirmedRepairStates.get(owner.getUniqueId()).add(rs);
+                }
+
+
+            }
         }
         //Move the repair states with confirmed owners to UUID dirs
         for (UUID id : confirmedRepairStates.keySet()){
@@ -146,6 +183,41 @@ public class RepairManager extends BukkitRunnable {
                     Movecraft.getInstance().getLogger().severe(String.format(I18nSupport.getInternationalisedString("RepairStateConversion - Conversion Failed"), fileName));
                     failedConversions++;
                 }
+                for (File rs : craftRepairStateDir.listFiles()){
+                    String fileName = rs.getName();
+                    //Continue if the file doen't start with the player name
+                    if (!fileName.startsWith(pName)){
+                        continue;
+                    }
+
+                    OfflinePlayer owner = null;
+                    for (OfflinePlayer op : Bukkit.getOfflinePlayers()){
+                        if (!op.getName().equals(pName)){
+                            continue;
+                        }
+                        owner = op;
+                    }
+                    //If a player with that name is not found, add to count, make a log output and continue the loop
+                    if (owner == null){
+                        repairStatesWithUnknownOwner++;
+                        Movecraft.getInstance().getLogger().warning(String.format(I18nSupport.getInternationalisedString("Repair - Invalid Player Name"), fileName));
+                        continue;
+                    }
+                    //Remove player name from the file
+                    fileName = fileName.substring(pName.length());
+                    //if it begins with an underscore, remove that too
+                    if (fileName.startsWith("_")){
+                        fileName = fileName.substring(1);
+                    }
+                    File playerDir = new File(repairStateDir, owner.getUniqueId().toString());
+                    File dest = new File(playerDir, fileName);
+                    if (rs.renameTo(dest)){ //If successfully moved to UUID directory, add to count
+                        convertedRepairStates++;
+                        continue;
+                    } //Add failed attempts to move to count as well
+                    Movecraft.getInstance().getLogger().severe(String.format(I18nSupport.getInternationalisedString("RepairStateConversion - Conversion Failed"), fileName));
+                    failedConversions++;
+                }
             }
         }
         //Finally, put statistics out in the log
@@ -157,7 +229,6 @@ public class RepairManager extends BukkitRunnable {
         log.info(String.format(I18nSupport.getInternationalisedString("RepairStateConversion - Repair States With Unknown Owner"), repairStatesWithUnknownOwner));
         log.info(String.format(I18nSupport.getInternationalisedString("RepairStateConversion - Failed conversions"), failedConversions));
     }
-
     public List<Repair> getRepairs() {
         return repairs;
     }

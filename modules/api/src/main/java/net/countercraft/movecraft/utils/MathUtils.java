@@ -23,6 +23,7 @@ import net.countercraft.movecraft.craft.Craft;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,6 +31,9 @@ public class MathUtils {
 
 
 
+    public static Vector we6vectorToBukkitVector(com.sk89q.worldedit.Vector weVector){
+        return new Vector(weVector.getBlockX(), weVector.getBlockY(), weVector.getBlockZ());
+    }
     /**
      * checks if <code>location</code> is within the bounding box <code>box</code> restricted by minimum values on x and z
      * @param box the bounding box to check within
@@ -94,7 +98,7 @@ public class MathUtils {
     @Contract(pure=true)
     public static boolean locIsNearCraftFast(@NotNull final Craft craft, @NotNull final MovecraftLocation location) {
         // optimized to be as fast as possible, it checks the easy ones first, then the more computationally intensive later
-        return locationNearHitBox(craft.getHitBox(), location.toBukkit(craft.getW()), 3);
+        return locationNearHitBox(craft.getHitBox(), location.toBukkit(craft.getWorld()), 3);
     }
 
     /**
@@ -107,6 +111,8 @@ public class MathUtils {
     public static MovecraftLocation bukkit2MovecraftLoc(@NotNull final Location bukkitLocation) {
         return new MovecraftLocation(bukkitLocation.getBlockX(), bukkitLocation.getBlockY(), bukkitLocation.getBlockZ());
     }
+
+
 
     /**
      * Rotates a MovecraftLocation towards a supplied <code>Rotation</code>.
