@@ -23,10 +23,6 @@
             <url>http://maven.sk89q.com/repo/</url>
         </repository>
         <repository>
-            <id>cannons-repo</id>
-            <url>https://github.com/DerPavlov/mvn-repo/raw/master/</url>
-        </repository>
-        <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
@@ -151,23 +147,6 @@
             <artifactId>movecraft-WE6Utils</artifactId>
             <version>WE6Utils</version>
             <type>jar</type>
-        </dependency>
-        <!--Cannons-->
-        <dependency>
-            <groupId>at.pavlov</groupId>
-            <artifactId>Cannons</artifactId>
-            <version>LATEST</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>dummypermscompat</artifactId>
-                    <groupId>com.sk89q</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>worldedit-bukkit</artifactId>
-                    <groupId>com.sk89q.worldedit</groupId>
-                </exclusion>
-            </exclusions>
-            <scope>provided</scope>
         </dependency>
         <!--SnakeYAML-->
         <dependency>

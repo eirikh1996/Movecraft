@@ -17,7 +17,6 @@
 
 package net.countercraft.movecraft;
 
-import at.pavlov.cannons.Cannons;
 import com.earth2me.essentials.Essentials;
 import com.mewin.WGCustomFlags.WGCustomFlagsPlugin;
 import com.palmergames.bukkit.towny.Towny;
@@ -65,7 +64,6 @@ public class Movecraft extends JavaPlugin {
     private static WorldEditPlugin worldEditPlugin;
     private static WGCustomFlagsPlugin wgCustomFlagsPlugin = null;
     private static Economy economy;
-    private static Cannons cannonsPlugin = null;
     private static Towny townyPlugin = null;
     private static Essentials essentialsPlugin = null;
     private Logger logger;
@@ -306,20 +304,6 @@ public class Movecraft extends JavaPlugin {
             }
             Settings.RepairMaxPercent = getConfig().getDouble("RepairMaxPercent", 50);
             worldEditPlugin = (WorldEditPlugin) wEPlugin;
-        }
-
-
-
-
-
-
-        // next is Cannons
-        Plugin plug = getServer().getPluginManager().getPlugin("Cannons");
-        if (plug != null && plug instanceof Cannons) {
-            cannonsPlugin = (Cannons) plug;
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Cannons Found"));
-        } else {
-        	logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Cannons Not Found"));
         }
         //Towny
         Plugin tempTownyPlugin = getServer().getPluginManager().getPlugin("Towny");
@@ -575,10 +559,6 @@ public class Movecraft extends JavaPlugin {
 
     public Economy getEconomy() {
         return economy;
-    }
-
-    public Cannons getCannonsPlugin() {
-        return cannonsPlugin;
     }
 
     public WGCustomFlagsPlugin getWGCustomFlagsPlugin() {
