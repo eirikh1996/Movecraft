@@ -72,21 +72,17 @@ public final class InteractListener implements Listener {
     @EventHandler
     public void onPlayerInteractStick(PlayerInteractEvent event) {
 
-        Craft c = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());
+        Craft craft = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());
         // if not in command of craft, don't process pilot tool clicks
-        if (c == null)
+        if (craft == null)
             return;
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             final Player player = event.getPlayer();
-            Craft craft = CraftManager.getInstance().getCraftByPlayer(player);
 
             if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
                 return;
             }
             event.setCancelled(true);
-            if (craft == null) {
-                return;
-            }
             final CraftType type = craft.getType();
             int currentGear = craft.getCurrentGear();
             if (player.isSneaking() && !craft.getPilotLocked()) {
@@ -166,38 +162,33 @@ public final class InteractListener implements Listener {
                 craft.setLastCruiseUpdate(System.currentTimeMillis());
                 return;
             }
-            if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-                if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
-                    return;
-                }
-                if (Settings.RequireSneakingForDirectControl && !event.getPlayer().isSneaking()) {
-                    return;
-                }
-                if (craft == null) {
-                    return;
-                }
-                if (craft.getPilotLocked()) {
-                    craft.setPilotLocked(false);
-                    event.getPlayer().sendMessage(
-                            I18nSupport.getInternationalisedString("Direct Control - Leaving"));
-                    event.setCancelled(true);
-                    return;
-                }
-                if (!event.getPlayer().hasPermission("movecraft." + craft.getType().getCraftName() + ".move")
-                        || !craft.getType().getCanDirectControl()) {
-                    event.getPlayer().sendMessage(
-                            I18nSupport.getInternationalisedString("Insufficient Permissions"));
-                    return;
-                }
-                craft.setPilotLocked(true);
-                craft.setPilotLockedX(event.getPlayer().getLocation().getBlockX() + 0.5);
-                craft.setPilotLockedY(event.getPlayer().getLocation().getY());
-                craft.setPilotLockedZ(event.getPlayer().getLocation().getBlockZ() + 0.5);
-                event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Direct Control - Entering"));
-                event.setCancelled(true);
-            }
-
         }
-
+        if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+            if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
+                return;
+            }
+            if (Settings.RequireSneakingForDirectControl && !event.getPlayer().isSneaking()) {
+                return;
+            }
+            if (craft.getPilotLocked()) {
+                craft.setPilotLocked(false);
+                event.getPlayer().sendMessage(
+                        I18nSupport.getInternationalisedString("Direct Control - Leaving"));
+                event.setCancelled(true);
+                return;
+            }
+            if (!event.getPlayer().hasPermission("movecraft." + craft.getType().getCraftName() + ".move")
+                    || !craft.getType().getCanDirectControl()) {
+                event.getPlayer().sendMessage(
+                        I18nSupport.getInternationalisedString("Insufficient Permissions"));
+                return;
+            }
+            craft.setPilotLocked(true);
+            craft.setPilotLockedX(event.getPlayer().getLocation().getBlockX() + 0.5);
+            craft.setPilotLockedY(event.getPlayer().getLocation().getY());
+            craft.setPilotLockedZ(event.getPlayer().getLocation().getBlockZ() + 0.5);
+            event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Direct Control - Entering"));
+            event.setCancelled(true);
+        }
     }
 }
