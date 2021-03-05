@@ -69,11 +69,8 @@ public class BlockListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockBreak(final BlockBreakEvent e) {
-        if (e.isCancelled()) {
-            return;
-        }
         if (e.getBlock().getType() == Material.WALL_SIGN) {
             Sign s = (Sign) e.getBlock().getState();
             if (s.getLine(0).equalsIgnoreCase(ChatColor.RED + I18nSupport.getInternationalisedString("Region Damaged"))) {
@@ -240,6 +237,20 @@ public class BlockListener implements Listener {
                 e.setCancelled(true);
                 break;
             }
+        }
+    }
+
+    @EventHandler
+    public void onIceForm(BlockFormEvent e) {
+        if (e.isCancelled() || !Settings.DisableIceForm) {
+            return;
+        }
+        if(e.getBlock().getType() != Material.WATER && e.getBlock().getType() != Material.STATIONARY_WATER)
+            return;
+        MovecraftLocation loc = MathUtils.bukkit2MovecraftLoc(e.getBlock().getLocation());
+        Craft craft = CraftManager.getInstance().fastNearestCraftToLoc(e.getBlock().getLocation());
+        if (craft != null && craft.getHitBox().contains((loc))) {
+            e.setCancelled(true);
         }
     }
 }

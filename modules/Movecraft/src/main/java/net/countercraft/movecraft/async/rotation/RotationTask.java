@@ -22,6 +22,7 @@ import com.palmergames.bukkit.towny.object.TownBlock;
 import com.palmergames.bukkit.towny.object.TownyWorld;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
+import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.Rotation;
@@ -199,7 +200,7 @@ public class RotationTask extends AsyncTask {
                     (oldHitBox.getMaxY() + oldHitBox.getMinY())/2.0,
                     (oldHitBox.getMaxZ() + oldHitBox.getMinZ())/2.0);
             for(Entity entity : craft.getW().getNearbyEntities(midpoint, oldHitBox.getXLength()/2.0 + 1, oldHitBox.getYLength()/2.0 + 2, oldHitBox.getZLength()/2.0 + 1)){
-                if ((entity.getType() == EntityType.PLAYER && !craft.getSinking()) || !craft.getType().getOnlyMovePlayers()) {
+                if (((entity.getType() == EntityType.PLAYER || entity.getType() == EntityType.PRIMED_TNT) && !craft.getSinking()) || !craft.getType().getOnlyMovePlayers()) {
                     // Player is onboard this craft
 
                     Location adjustedPLoc = entity.getLocation().subtract(tOP);
@@ -216,39 +217,39 @@ public class RotationTask extends AsyncTask {
             if (rotation == Rotation.ANTICLOCKWISE) {
                 // ship faces west
                 switch (getCraft().getCruiseDirection()) {
-                    case 0x5:
-                        getCraft().setCruiseDirection((byte) 0x2);
+                    case WEST:
+                        getCraft().setCruiseDirection(CruiseDirection.SOUTH);
                         break;
                     // ship faces east
-                    case 0x4:
-                        getCraft().setCruiseDirection((byte) 0x3);
+                    case EAST:
+                        getCraft().setCruiseDirection(CruiseDirection.NORTH);
                         break;
                     // ship faces north
-                    case 0x2:
-                        getCraft().setCruiseDirection((byte) 0x4);
+                    case SOUTH:
+                        getCraft().setCruiseDirection(CruiseDirection.EAST);
                         break;
                     // ship faces south
-                    case 0x3:
-                        getCraft().setCruiseDirection((byte) 0x5);
+                    case NORTH:
+                        getCraft().setCruiseDirection(CruiseDirection.WEST);
                         break;
                 }
             } else if (rotation == Rotation.CLOCKWISE) {
                 // ship faces west
                 switch (getCraft().getCruiseDirection()) {
-                    case 0x5:
-                        getCraft().setCruiseDirection((byte) 0x3);
+                    case WEST:
+                        getCraft().setCruiseDirection(CruiseDirection.NORTH);
                         break;
                     // ship faces east
-                    case 0x4:
-                        getCraft().setCruiseDirection((byte) 0x2);
+                    case EAST:
+                        getCraft().setCruiseDirection(CruiseDirection.SOUTH);
                         break;
                     // ship faces north
-                    case 0x2:
-                        getCraft().setCruiseDirection((byte) 0x5);
+                    case SOUTH:
+                        getCraft().setCruiseDirection(CruiseDirection.WEST);
                         break;
                     // ship faces south
-                    case 0x3:
-                        getCraft().setCruiseDirection((byte) 0x4);
+                    case NORTH:
+                        getCraft().setCruiseDirection(CruiseDirection.EAST);
                         break;
                 }
             }
@@ -284,7 +285,8 @@ public class RotationTask extends AsyncTask {
                         faceMessage += I18nSupport.getInternationalisedString("Contact/Subcraft Rotate - North");
                 }
             }
-            getCraft().getNotificationPlayer().sendMessage(faceMessage);
+            if(getCraft().getNotificationPlayer() != null)
+                getCraft().getNotificationPlayer().sendMessage(faceMessage);
 
             craftsInWorld = CraftManager.getInstance().getCraftsInWorld(getCraft().getW());
             for (Craft craft : craftsInWorld) {
@@ -339,7 +341,7 @@ public class RotationTask extends AsyncTask {
         return isSubCraft;
     }
 
-    private void isTownyBlock(Location plugLoc, Player craftPilot){
+    private void isTownyBlock(Location plugLoc, Player craftPilot) {
         //towny
         Player p = craftPilot == null ? getCraft().getNotificationPlayer() : craftPilot;
         if (p == null) {

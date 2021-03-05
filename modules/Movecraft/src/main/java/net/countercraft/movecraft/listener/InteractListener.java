@@ -131,17 +131,20 @@ public final class InteractListener implements Listener {
             }
             // Player is onboard craft and right clicking
 
-            final Vector direction = player.getLocation().getDirection();
+            float rotation = (float) Math.PI * event.getPlayer().getLocation().getYaw() / 180f;
+
+            float nx = -(float) Math.sin(rotation);
+            float nz = (float) Math.cos(rotation);
+
+            int dx = (Math.abs(nx) >= 0.5 ? 1 : 0) * (int) Math.signum(nx);
+            int dz = (Math.abs(nz) > 0.5 ? 1 : 0) * (int) Math.signum(nz);
+            int dy;
+
             float p = event.getPlayer().getLocation().getPitch();
 
-            direction.setY(-(Math.abs(p) >= 25 ? 1 : 0) * (int) Math.signum(p));
-            direction.normalize();
-            if (craft.getType().getGearShiftsAffectDirectMovement())
-                direction.multiply(currentGear);
-            int dx = (int) Math.rint(direction.getX());
-            int dz = (int) Math.rint(direction.getZ());
-            int dy = (int) Math.rint(direction.getY());
-            if (Math.abs(p) >= 75) {
+            dy = -(Math.abs(p) >= 25 ? 1 : 0) * (int) Math.signum(p);
+
+            if (Math.abs(event.getPlayer().getLocation().getPitch()) >= 75) {
                 dx = 0;
                 dz = 0;
             }
