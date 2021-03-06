@@ -75,18 +75,6 @@
               <minimizeJar>true</minimizeJar>
               <filters>
                 <filter>
-                  <artifact>net.countercraft:movecraft-WE6Utils</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-                <filter>
-                  <artifact>net.countercraft:movecraft-WE7Utils</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-                <filter>
                   <artifact>net.countercraft:movecraft-v1_8_R3</artifact>
                   <includes>
                     <include>**</include>
@@ -186,12 +174,6 @@
   </repositories>
   <dependencies>
     <dependency>
-      <groupId>com.sk89q.worldedit</groupId>
-      <artifactId>worldedit-bukkit</artifactId>
-      <version>7.0.1-SNAPSHOT</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>com.sk89q.worldguard</groupId>
       <artifactId>worldguard-core</artifactId>
       <version>7.0.1-SNAPSHOT</version>
@@ -210,22 +192,10 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.sk89q</groupId>
-      <artifactId>worldedit</artifactId>
-      <version>6.0.0-SNAPSHOT</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
       <version>1.10</version>
       <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.github.MilkBowl</groupId>
-      <artifactId>VaultAPI</artifactId>
-      <version>1.7</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>net.ess3</groupId>
@@ -238,13 +208,6 @@
       <artifactId>annotations-java5</artifactId>
       <version>RELEASE</version>
       <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.palmergames</groupId>
-      <artifactId>Towny</artifactId>
-      <version>LATEST</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/../../libs/Towny.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>com.mewin</groupId>
