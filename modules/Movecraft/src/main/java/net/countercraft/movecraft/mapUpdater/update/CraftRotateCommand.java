@@ -114,7 +114,7 @@ public class CraftRotateCommand extends UpdateCommand {
                     if (playerVehicle != null && craft.getType().getOnlyMovePlayers()) {
                         playerVehicle.eject();
                     }
-                    toRotate.add(new EntityUpdateCommand(entity, rotatedCoords[0] + tOP.getX() - entity.getLocation().getX(), 0, rotatedCoords[1] + tOP.getZ() - entity.getLocation().getZ(), newYaw, 0));
+                    toRotate.add(new EntityUpdateCommand(entity, rotatedCoords[0] + tOP.getX() - entity.getLocation().getX(), 0, rotatedCoords[1] + tOP.getZ() - entity.getLocation().getZ(), newYaw, 0, entity.getWorld(), rotation));
                 } else if (!craft.getType().getOnlyMovePlayers() || entity.getType() == EntityType.PRIMED_TNT) {
                     boolean isPlayerVehicle = false;
                     for (Entity pass : entity.getPassengers()) {

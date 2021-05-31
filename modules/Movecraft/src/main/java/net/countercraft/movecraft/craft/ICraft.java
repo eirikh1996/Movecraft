@@ -89,7 +89,7 @@ public class ICraft extends Craft {
     public Set<Craft> getContacts() {
         final Set<Craft> contacts = new HashSet<>();
         for (Craft contact : CraftManager.getInstance().getCraftsInWorld(world)) {
-            if (contact.getNotificationPlayer() == this.getNotificationPlayer()) {
+            if (contact == null || contact.getNotificationPlayer() == this.getNotificationPlayer()) {
                 continue;
             }
             MovecraftLocation ccenter = this.getHitBox().getMidPoint();

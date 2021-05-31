@@ -17,13 +17,16 @@
 
 package net.countercraft.movecraft.mapUpdater.update;
 
+import net.countercraft.movecraft.Rotation;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.utils.TeleportUtils;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 
 import java.util.Objects;
@@ -41,6 +44,7 @@ public class EntityUpdateCommand extends UpdateCommand {
     private final World world;
     private final Sound sound;
     private final float volume;
+    private final Rotation rotation;
 
     public EntityUpdateCommand(Entity entity, double dx, double dy, double dz, float yaw, float pitch) {
         this.entity = entity;
@@ -52,6 +56,7 @@ public class EntityUpdateCommand extends UpdateCommand {
         this.world = entity.getWorld();
         this.sound = null;
         this.volume = 0.0f;
+        this.rotation = Rotation.NONE;
     }
 
     public EntityUpdateCommand(Entity entity, double x, double y, double z, float yaw, float pitch, World world) {
@@ -64,6 +69,20 @@ public class EntityUpdateCommand extends UpdateCommand {
         this.world = world;
         this.sound = null;
         this.volume = 0.0f;
+        this.rotation = Rotation.NONE;
+    }
+
+    public EntityUpdateCommand(Entity entity, double x, double y, double z, float yaw, float pitch, World world, Rotation rotation) {
+        this.entity = entity;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.world = world;
+        this.sound = null;
+        this.volume = 0.0f;
+        this.rotation = rotation;
     }
 
     public EntityUpdateCommand(Entity entity, double x, double y, double z, float yaw, float pitch, World world, Sound sound, float volume) {
@@ -76,6 +95,20 @@ public class EntityUpdateCommand extends UpdateCommand {
         this.world = world;
         this.sound = sound;
         this.volume = volume;
+        this.rotation = Rotation.NONE;
+    }
+
+    public EntityUpdateCommand(Entity entity, double x, double y, double z, float yaw, float pitch, World world, Sound sound, float volume, Rotation rotation) {
+        this.entity = entity;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.world = world;
+        this.sound = sound;
+        this.volume = volume;
+        this.rotation = rotation;
     }
 
 
@@ -94,6 +127,23 @@ public class EntityUpdateCommand extends UpdateCommand {
             }
             return;
         } else if (!(entity instanceof Player)) {
+            if (entity instanceof Hanging && rotation != Rotation.NONE) {
+                final Hanging frame = (Hanging) entity;
+                switch (frame.getFacing()) {
+                    case SOUTH:
+                        frame.setFacingDirection(rotation == Rotation.CLOCKWISE ? BlockFace.WEST : BlockFace.EAST);
+                        break;
+                    case NORTH:
+                        frame.setFacingDirection(rotation == Rotation.CLOCKWISE ? BlockFace.EAST : BlockFace.WEST);
+                        break;
+                    case EAST:
+                        frame.setFacingDirection(rotation == Rotation.CLOCKWISE ? BlockFace.SOUTH : BlockFace.NORTH);
+                        break;
+                    case WEST:
+                        frame.setFacingDirection(rotation == Rotation.CLOCKWISE ? BlockFace.NORTH : BlockFace.SOUTH);
+                        break;
+                }
+            }
             TeleportUtils.teleportEntity(entity, destLoc);
             return;
         }
