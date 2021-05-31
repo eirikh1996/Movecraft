@@ -155,10 +155,10 @@
     </dependency>
   </dependencies>
   <properties>
-    <junit.platform.version>1.2.0</junit.platform.version>
-    <junit.vintage.version>${junit.jupiter.version}</junit.vintage.version>
-    <junit.jupiter.version>5.2.0</junit.jupiter.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>4.13.1</junit.version>
+    <junit.jupiter.version>5.2.0</junit.jupiter.version>
+    <junit.vintage.version>${junit.jupiter.version}</junit.vintage.version>
+    <junit.platform.version>1.2.0</junit.platform.version>
   </properties>
 </project>

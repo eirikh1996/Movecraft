@@ -7,6 +7,7 @@ import net.countercraft.movecraft.async.detection.DetectionTask;
 import net.countercraft.movecraft.async.rotation.RotationTask;
 import net.countercraft.movecraft.async.translation.TranslationTask;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.utils.SignUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -113,7 +114,7 @@ public class ICraft extends Craft {
     public void resetSigns(@NotNull Sign clicked) {
         for (final MovecraftLocation ml : hitBox) {
             final Block b = ml.toBukkit(world).getBlock();
-            if (!(b.getState() instanceof Sign)) {
+            if (!SignUtils.isSign(b)) {
                 continue;
             }
             final Sign sign = (Sign) b.getState();
