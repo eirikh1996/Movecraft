@@ -3,10 +3,10 @@ package net.countercraft.movecraft.sign;
 import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.craft.CraftType;
 import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.CraftType;
 import net.countercraft.movecraft.craft.ICraft;
 import net.countercraft.movecraft.events.CraftPilotEvent;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
@@ -19,7 +19,6 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
-import org.bukkit.block.data.type.WallSign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -70,11 +69,11 @@ public final class CraftSign implements Listener{
 
         if (c.getType().getCruiseOnPilot()) {
             c.detect(null, event.getPlayer(), startPoint);
-            org.bukkit.material.Sign materialSign = (org.bukkit.material.Sign) block.getState().getData();
-            if(block.getType().name().endsWith("SIGN") || block.getType() == LegacyUtils.SIGN_POST)
+            BlockFace face = SignUtils.getFacing(sign);
+            if(!SignUtils.isWallSign(block) || block.getType() == LegacyUtils.SIGN_POST)
                 c.setCruiseDirection(CruiseDirection.NONE);
             else
-                c.setCruiseDirection(CruiseDirection.fromBlockFace(materialSign.getFacing()));
+                c.setCruiseDirection(CruiseDirection.fromBlockFace(face));
             c.setLastCruiseUpdate(System.currentTimeMillis());
             c.setCruising(true);
             new BukkitRunnable() {

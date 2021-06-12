@@ -24,6 +24,8 @@ public class WaterlogUtils {
         for (MovecraftLocation ml : craft.getHitBox()) {
             final Pair<Material, Object> block = craft.getPhaseBlocks().getOrDefault(ml.toBukkit(craft.getWorld()), DEFAULT_PHASE_BLOCK);
             final Material phaseBlock = block.getLeft();
+            if (block.getRight() instanceof Byte)
+                Bukkit.broadcastMessage(String.valueOf(block.getRight()));
             final BlockData phaseBlockData = (BlockData) block.getRight();
             boolean waterlog = phaseBlock == Material.WATER && phaseBlockData instanceof Levelled && ((Levelled) phaseBlockData).getLevel() == 0;
             Block b = ml.toBukkit(craft.getWorld()).getBlock();

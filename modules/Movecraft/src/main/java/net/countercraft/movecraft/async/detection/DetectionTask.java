@@ -18,6 +18,7 @@
 package net.countercraft.movecraft.async.detection;
 
 
+import com.google.common.collect.Lists;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftBlock;
 import net.countercraft.movecraft.MovecraftLocation;
@@ -51,6 +52,7 @@ public class DetectionTask extends AsyncTask {
     @NotNull private final Player notificationPlayer;
     @NotNull private final BlockContainer allowedBlocks;
     @NotNull private final BlockContainer forbiddenBlocks;
+    @NotNull private final BlockContainer interiorBlocks;
     @NotNull private final String[] forbiddenSignStrings;
     private int maxX;
     private int maxY;
@@ -74,6 +76,7 @@ public class DetectionTask extends AsyncTask {
         this.allowedBlocks = craft.getType().getAllowedBlocks();
         this.forbiddenBlocks = craft.getType().getForbiddenBlocks();
         this.forbiddenSignStrings = craft.getType().getForbiddenSignStrings();
+        this.interiorBlocks = craft.getType().getInteriorBlocks();
     }
 
     @Override
@@ -85,6 +88,7 @@ public class DetectionTask extends AsyncTask {
         do {
             detectSurrounding(blockStack.pop());
         } while (!blockStack.isEmpty());
+        detectInterior();
         if (failed) {
             return;
         }
@@ -114,6 +118,57 @@ public class DetectionTask extends AsyncTask {
         long endTime = System.currentTimeMillis();
         if (Settings.Debug){
             Bukkit.broadcastMessage("Detection took (ms): " + (endTime - startTime));
+        }
+    }
+
+    private void detectInterior() {
+        //The subtraction of the set of coordinates in the HitBox cube and the HitBox itself
+        final BitmapHitBox invertedHitBox = new BitmapHitBox(hitBox.boundingHitBox()).difference(hitBox);
+
+        //A set of locations that are confirmed to be "exterior" locations
+        final BitmapHitBox confirmed = new BitmapHitBox();
+
+        //place phased blocks
+        final int minX = hitBox.getMinX();
+        final int maxX = hitBox.getMaxX();
+        final int minY = hitBox.getMinY();
+        final int maxY = hitBox.getMaxY();
+        final int minZ = hitBox.getMinZ();
+        final int maxZ = hitBox.getMaxZ();
+        final HitBox[] surfaces = {
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))};
+        final BitmapHitBox validExterior = new BitmapHitBox();
+        for (HitBox hitBox : surfaces) {
+            validExterior.addAll(new BitmapHitBox(hitBox).difference(this.hitBox));
+        }
+
+        //Check to see which locations in the from set are actually outside of the craft
+        //use a modified BFS for multiple origin elements
+        BitmapHitBox visited = new BitmapHitBox();
+        Queue<MovecraftLocation> queue = Lists.newLinkedList(validExterior);
+        while (!queue.isEmpty()) {
+            MovecraftLocation node = queue.poll();
+            if (visited.contains(node))
+                continue;
+            visited.add(node);
+            //If the node is already a valid member of the exterior of the HitBox, continued search is unitary.
+            for (MovecraftLocation neighbor : CollectionUtils.neighbors(invertedHitBox, node)) {
+                if (neighbor.subtract(node).getY() <= -1)
+                    continue;
+                queue.add(neighbor);
+            }
+        }
+        confirmed.addAll(visited);
+        for (MovecraftLocation interiorLoc : invertedHitBox.difference(confirmed)) {
+            Block block = interiorLoc.toBukkit(world).getBlock();
+            if (!isInteriorBlock(block.getType(), block.getData())) {
+                continue;
+            }
+            addToBlockList(interiorLoc);
         }
     }
 
@@ -226,6 +281,10 @@ public class DetectionTask extends AsyncTask {
 
     private boolean isForbiddenBlock(Material test, int testData) {
         return forbiddenBlocks.contains(test) || forbiddenBlocks.contains(test, (byte) testData);
+    }
+
+    private boolean isInteriorBlock(Material test, int testData) {
+        return interiorBlocks.contains(test) || interiorBlocks.contains(test, (byte) testData);
     }
 
     private boolean isForbiddenSignString(String testString) {

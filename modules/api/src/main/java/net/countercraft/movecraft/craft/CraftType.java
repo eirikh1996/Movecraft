@@ -105,6 +105,7 @@ final public class CraftType {
     private final float collisionExplosion;
     @NotNull private final String craftName;
     @NotNull private final BlockContainer allowedBlocks;
+    @NotNull private final BlockContainer interiorBlocks;
     @NotNull private final BlockContainer forbiddenBlocks;
     @NotNull private final String[] forbiddenSignStrings;
     @NotNull private final BlockLimitManager flyBlocks;
@@ -145,6 +146,7 @@ final public class CraftType {
         maxSize = integerFromObject(data.get("maxSize"));
         minSize = integerFromObject(data.get("minSize"));
         allowedBlocks = new BlockContainer(data.get("allowedBlocks"));
+        interiorBlocks = new BlockContainer(data.getOrDefault("interiorBlocks", new ArrayList<>()));
         forbiddenBlocks = new BlockContainer(data.get("forbiddenBlocks"));
         forbiddenSignStrings = stringListFromObject(data.get("forbiddenSignStrings"));
         tickCooldown = (int) Math.ceil(20 / (doubleFromObject(data.get("speed"))));
@@ -1014,6 +1016,11 @@ final public class CraftType {
 
     public boolean getLockPilotAtDirectControl() {
         return lockPilotAtDirectControl;
+    }
+
+    @NotNull
+    public BlockContainer getInteriorBlocks() {
+        return interiorBlocks;
     }
 
     public class TypeNotFoundException extends RuntimeException {
