@@ -24,7 +24,6 @@ import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.LegacyUtils;
 import net.countercraft.movecraft.utils.MathUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -193,11 +192,6 @@ public class BlockListener implements Listener {
                 break;
             }
         }
-    }
-
-    @EventHandler
-    public void onPlace(BlockPlaceEvent event) {
-        Bukkit.broadcastMessage(event.getBlock().getType().name());
     }
 
     @Nullable
