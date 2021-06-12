@@ -71,9 +71,11 @@ public class ChunkManager implements Listener {
         Bukkit.getScheduler().callSyncMethod(Movecraft.getInstance(), () -> {
             for (MovecraftChunk chunk : list) {
                 chunk.toBukkit().setForceLoaded(false);
+                chunk = null;
             }
             return true;
         });
+
     }
     
     @EventHandler

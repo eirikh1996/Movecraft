@@ -46,46 +46,52 @@ public class TeleportUtils {
     private static Field activeContainer;
     private static Field defaultContainer;
 
+    private static Field t;
+
     static {
-        Class<?> packet = getNmsClass("Packet");
-        Class<?> entity = getNmsClass("Entity");
-        Class<?> entityPlayer = getNmsClass("EntityPlayer");
-        Class<?> entityHuman = getNmsClass("EntityHuman");
-        Class<?> connectionClass = getNmsClass("PlayerConnection");
-        Class<?> packetClass = getNmsClass("PacketPlayOutPosition");
-        Class<?> vehiclePacket = getNmsClass("PacketPlayOutVehicleMove");
-        Class<?> vecClass = getNmsClass("Vec3D");
-        Class<?> worldClass = getNmsClass("World");
+        Class<?> packet = v1_17() ? getNmnClass("protocol.Packet") : getNmsClass("Packet");
+        Class<?> entity = v1_17() ? getNmwClass("entity.Entity") : getNmsClass("Entity");
+        Class<?> entityPlayer = getNmsClass((v1_17() ? "level." : "") + "EntityPlayer");
+        Class<?> entityHuman = v1_17() ? getNmwClass("entity.player.EntityHuman") : getNmsClass("EntityHuman");
+        Class<?> connectionClass = getNmsClass((v1_17() ? "network." : "") + "PlayerConnection");
+        Class<?> packetClass = v1_17() ? getNmnClass("protocol.game.PacketPlayOutPosition") : getNmsClass("PacketPlayOutPosition");
+        Class<?> vehiclePacket =  v1_17() ? getNmnClass("protocol.game.PacketPlayOutVehicleMove") : getNmsClass("PacketPlayOutVehicleMove");
+        Class<?> vecClass = v1_17() ? getNmwClass("phys.Vec3D") : getNmsClass("Vec3D");
+        Class<?> worldClass = v1_17() ? getNmwClass("level.World") : getNmsClass("World");
+
         try {
             sendMethod = connectionClass.getMethod("sendPacket", packet);
 
             position = entity.getDeclaredMethod("setLocation", Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE);
             closeInventory = entityPlayer.getDeclaredMethod("closeInventory");
             getBukkitEntity = entity.getDeclaredMethod("getBukkitEntity");
-            spawnIn = entity.getDeclaredMethod("spawnIn", worldClass);
+            if (!v1_17())
+                spawnIn = entity.getDeclaredMethod("spawnIn", worldClass);
+            else
+                t = entity.getDeclaredField("t");
+            yaw = getField(entity, v1_17() ? "ay" : "yaw");
+            pitch = getField(entity,  v1_17() ? "az" : "pitch");
+            connectionField = getField(entityPlayer, v1_17() ? "b" : "playerConnection");
+            activeContainer = getField(entityHuman, v1_17() ? "bU" : "activeContainer");
+            defaultContainer = getField(entityHuman, v1_17() ? "bV" : "defaultContainer");
 
-            yaw = getField(entity, "yaw");
-            pitch = getField(entity, "pitch");
-            connectionField = getField(entityPlayer, "playerConnection");
-            activeContainer = getField(entityHuman, "activeContainer");
-            defaultContainer = getField(entityHuman, "defaultContainer");
-
-            packetConstructor = packetClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE, Set.class, Integer.TYPE);
+            packetConstructor = v1_17() ? packetClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE, Set.class, Integer.TYPE, Boolean.TYPE)
+            : packetClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE, Set.class, Integer.TYPE);
             vec3D = vecClass.getConstructor(Double.TYPE, Double.TYPE, Double.TYPE);
 
             vehiclePacketConstructor = vehiclePacket.getConstructor(entity);
 
-            Object[] enumObjects = getNmsClass("PacketPlayOutPosition$EnumPlayerTeleportFlags").getEnumConstants();
+            Object[] enumObjects = v1_17() ? getNmnClass("protocol.game.PacketPlayOutPosition$EnumPlayerTeleportFlags").getEnumConstants() :  getNmsClass("PacketPlayOutPosition$EnumPlayerTeleportFlags").getEnumConstants();
             teleportFlags = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(enumObjects[4], enumObjects[3])));
 
             justTeleportedField = getField(connectionClass, "justTeleported");
-            teleportPosField = getField(connectionClass, "teleportPos");
+            teleportPosField = getField(connectionClass, v1_17() ? "y" : "teleportPos");
             lastPosXField = getField(connectionClass, "lastPosX");
             lastPosYField = getField(connectionClass, "lastPosY");
             lastPosZField = getField(connectionClass, "lastPosZ");
-            teleportAwaitField = getField(connectionClass, "teleportAwait");
+            teleportAwaitField = getField(connectionClass, v1_17() ? "z" : "teleportAwait");
             AField = getField(connectionClass, "A");
-            eField = getField(connectionClass, "e");
+            eField = getField(connectionClass, v1_17() ? "f" : "e");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -140,7 +146,7 @@ public class TeleportUtils {
             teleportAwaitField.set(connection, teleportAwait);
             AField.set(connection, eField.get(connection));
 
-            Object packet = packetConstructor.newInstance(x, y, z, yawChange, 0, teleportFlags, teleportAwait);
+            Object packet = v1_17() ? packetConstructor.newInstance(x, y, z, yawChange, 0, teleportFlags, teleportAwait, true) : packetConstructor.newInstance(x, y, z, yawChange, 0, teleportFlags, teleportAwait);
             sendPacket(packet, player);
             if (vehicle == null)
                 return;
@@ -184,11 +190,39 @@ public class TeleportUtils {
             return null;
         }
     }
+    private static boolean v1_17() {
+        return Integer.parseInt(getVersion().split("_")[1]) >= 17;
+    }
+
     private static Class<?> getNmsClass(String name) {
         Class clazz = null;
 
         try {
-            clazz = Class.forName("net.minecraft.server." + getVersion() + "." + name);
+            clazz = Class.forName("net.minecraft.server." + (v1_17() ? "" :  getVersion() + ".") + name);
+        } catch (ClassNotFoundException var3) {
+            var3.printStackTrace();
+        }
+
+        return clazz;
+    }
+
+    private static Class<?> getNmnClass(String name) {
+        Class clazz = null;
+
+        try {
+            clazz = Class.forName("net.minecraft.network." + name);
+        } catch (ClassNotFoundException var3) {
+            var3.printStackTrace();
+        }
+
+        return clazz;
+    }
+
+    private static Class<?> getNmwClass(String name) {
+        Class clazz = null;
+
+        try {
+            clazz = Class.forName("net.minecraft.world." + name);
         } catch (ClassNotFoundException var3) {
             var3.printStackTrace();
         }
