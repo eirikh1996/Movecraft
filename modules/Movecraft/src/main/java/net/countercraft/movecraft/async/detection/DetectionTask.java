@@ -122,6 +122,8 @@ public class DetectionTask extends AsyncTask {
     }
 
     private void detectInterior() {
+        if (hitBox.isEmpty())
+            return;
         //The subtraction of the set of coordinates in the HitBox cube and the HitBox itself
         final BitmapHitBox invertedHitBox = new BitmapHitBox(hitBox.boundingHitBox()).difference(hitBox);
 

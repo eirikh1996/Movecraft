@@ -75,7 +75,7 @@ public class ChunkManager implements Listener {
             }
             return true;
         });
-
+        System.gc();
     }
     
     @EventHandler
