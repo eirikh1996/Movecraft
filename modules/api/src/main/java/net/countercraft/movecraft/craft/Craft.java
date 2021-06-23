@@ -19,465 +19,250 @@ package net.countercraft.movecraft.craft;
 
 import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.Rotation;
-import net.countercraft.movecraft.config.Settings;
-import net.countercraft.movecraft.events.CraftSinkEvent;
-import net.countercraft.movecraft.utils.BitmapHitBox;
-import net.countercraft.movecraft.utils.Counter;
-import net.countercraft.movecraft.utils.Pair;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
+import net.countercraft.movecraft.MovecraftRotation;
+import net.countercraft.movecraft.processing.MovecraftWorld;
+import net.countercraft.movecraft.util.hitboxes.HitBox;
+import net.countercraft.movecraft.util.hitboxes.MutableHitBox;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class Craft {
-    @NotNull protected final CraftType type;
-    @NotNull protected BitmapHitBox hitBox;
-    @NotNull protected final BitmapHitBox collapsedHitBox;
-    @NotNull protected BitmapHitBox fluidLocations;
-    @NotNull protected final Counter<Material> materials;
-    @NotNull protected World w;
-    @NotNull private final AtomicBoolean processing = new AtomicBoolean();
-    private int maxHeightLimit;
-    private boolean cruising;
-    private boolean sinking;
-    private boolean disabled;
-    private CruiseDirection cruiseDirection;
-    private long lastCruiseUpdate;
-    private long lastBlockCheck;
-    private long lastRotateTime=0;
-    private final long origPilotTime;
-    private long lastTeleportTime;
-    private int lastDX, lastDY, lastDZ;
-    private int currentGear = 1;
-    private double burningFuel;
-    private boolean pilotLocked;
-    private double pilotLockedX;
-    private double pilotLockedY;
-    private int origBlockCount;
-    private double pilotLockedZ;
-    @Nullable private Player notificationPlayer;
-    private float meanCruiseTime;
-    private int numMoves;
-    @NotNull private final Map<Location, Pair<Material, Byte>> phaseBlocks = new HashMap<>();
-    @NotNull private String name = "";
-
-    public Craft(@NotNull CraftType type, @NotNull World world) {
-        this.type = type;
-        this.w = world;
-        this.hitBox = new BitmapHitBox();
-        this.collapsedHitBox = new BitmapHitBox();
-        this.fluidLocations = new BitmapHitBox();
-        if (type.getMaxHeightLimit(w) > w.getMaxHeight() - 1) {
-            this.maxHeightLimit = w.getMaxHeight() - 1;
-        } else {
-            this.maxHeightLimit = type.getMaxHeightLimit(w);
-        }
-        this.pilotLocked = false;
-        this.pilotLockedX = 0.0;
-        this.pilotLockedY = 0.0;
-        this.pilotLockedZ = 0.0;
-        this.lastCruiseUpdate = System.currentTimeMillis() - 10000;
-        this.cruising = false;
-        this.sinking = false;
-        this.disabled = false;
-        this.origPilotTime = System.currentTimeMillis();
-        numMoves = 0;
-        materials = new Counter<>();
-    }
-
-    public boolean isNotProcessing() {
-        return !processing.get();
-    }
-
-    public void setProcessing(boolean processing) {
-        this.processing.set(processing);
-    }
-
-    @NotNull
-    public BitmapHitBox getHitBox() {
-        return hitBox;
-    }
-
-    public void setHitBox(@NotNull BitmapHitBox hitBox){
-        this.hitBox = hitBox;
-    }
-
-    @NotNull
-    public CraftType getType() {
-        return type;
-    }
-
-    @NotNull
-    public World getW() {
-        return w;
-    }
-    
-    public void setW(World world) {
-        this.w = world;
-        if (type.getMaxHeightLimit(w) > w.getMaxHeight() - 1) {
-            this.maxHeightLimit = w.getMaxHeight() - 1;
-        } else {
-            this.maxHeightLimit = type.getMaxHeightLimit(w);
-        }
-    }
-
-    public abstract void detect(Player player, Player notificationPlayer, MovecraftLocation startPoint);
-
-    public abstract void translate(World world, int dx, int dy, int dz);
+public interface Craft {
 
     @Deprecated
-    public void translate(int dx, int dy, int dz) {
-        translate(w, dx, dy, dz);
+    boolean isNotProcessing();
+
+    @Deprecated
+    void setProcessing(boolean processing);
+
+    /**
+     * Gets a HitBox representing the current locations that this craft controls
+     *
+     * @return the crafts current HitBox
+     */
+    @NotNull
+    HitBox getHitBox();
+
+    /**
+     * Sets the HitBox representing the current locations that this craft controls
+     */
+    void setHitBox(@NotNull HitBox hitBox);
+
+    /**
+     * Gets the CraftType used to determine the Craft's behaviours
+     *
+     * @return the Craft's CraftType
+     */
+    @NotNull
+    CraftType getType();
+
+    @Deprecated(forRemoval = true) @NotNull
+    default World getW(){
+        return this.getWorld();
     }
 
-    public abstract void rotate(Rotation rotation, MovecraftLocation originPoint);
+    /**
+     * Gets a MovecraftWorld representing the crafts current world. This can be saftely used during processing, as opposed to {@link #getWorld()}
+     * @return The MovecraftWorld representation of the crafts current world
+     */
+    @NotNull
+    MovecraftWorld getMovecraftWorld();
 
-    public abstract void rotate(Rotation rotation, MovecraftLocation originPoint, boolean isSubCraft);
+    /**
+     * Gets the World object that this craft is currently located in. When processing, instead use {@link #getMovecraftWorld()}
+     * @return The World of this craft
+     */
+    @NotNull
+    World getWorld();
 
-    public boolean getCruising() {
-        return cruising;
+    @Deprecated(forRemoval = true)
+    default void setW(@NotNull World world){
+        this.setWorld(world);
     }
 
-    public void setCruising(boolean cruising) {
-        if(notificationPlayer!=null){
-            notificationPlayer.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("Cruising " + (cruising ? "enabled" : "disabled")));
-        }
-        this.cruising = cruising;
-    }
+    /**
+     * Sets the current world of the craft. This notably does not physically move the craft - for this {@link #translate(World, int, int, int)} should be used instead.
+     * @param world the world the craft should now be considered in
+     */
+    void setWorld(@NotNull World world);
 
-    public boolean getSinking() {
-        return sinking;
-    }
+    /**
+     * Attempts to translate the blocks controlled by the craft. If a world argument is supplied, the blocks will be transformed to a different world.
+     * @param world The world to move to
+     * @param dx The amount to shift in the x axis
+     * @param dy The amount to shift in the y axis
+     * @param dz The amount to shift in the z axis
+     */
+    void translate(World world, int dx, int dy, int dz);
 
-    /*public void setSinking(boolean sinking) {
-        this.sinking = sinking;
-    }*/
+    @Deprecated
+    void translate(int dx, int dy, int dz);
 
-    public void sink(){
-        CraftSinkEvent event = new CraftSinkEvent(this);
-        Bukkit.getServer().getPluginManager().callEvent(event);
-        if(event.isCancelled()){
-            return;
-        }
-        this.sinking = true;
-    }
+    /**
+     * Attempts to rotate the blocks controlled by the craft.
+     * @param rotation The direction to rotate the craft
+     * @param originPoint the origin point of the rotation
+     */
+    void rotate(MovecraftRotation rotation, MovecraftLocation originPoint);
+
+    @Deprecated
+    void rotate(MovecraftRotation rotation, MovecraftLocation originPoint, boolean isSubCraft);
+
+    /**
+     * Gets the cruising state of the craft.
+     * @return The cruse state of the craft
+     */
+    boolean getCruising();
+
+    /**
+     * Sets the craft to cruise or not cruise.
+     * @param cruising the desired cruise state
+     */
+    void setCruising(boolean cruising);
+
+    @Deprecated
+    boolean getSinking();
+
+    @Deprecated
+    void sink();
 
 
     /**
      * Gets the crafts that have made contact with this craft
      * @return a set of crafts on contact with this craft
      */
-    public abstract Set<Craft> getContacts();
+    Set<Craft> getContacts();
 
-    public boolean getDisabled() {
-        return disabled;
+    /**
+     * Gets the disabled status of the craft
+     * @return the disabled status of the craft
+     */
+    boolean getDisabled();
+
+    /**
+     * Sets the craft to be disabled or not
+     * @param disabled the desired disabled state of the craft
+     */
+    void setDisabled(boolean disabled);
+
+    /**
+     * Gets the direction of cruise for the craft
+     * @return The current CruiseDirection of the craft
+     */
+    CruiseDirection getCruiseDirection();
+
+    /**
+     * Sets the crafts cruise direction
+     * @param cruiseDirection The desired cruise direction
+     */
+    void setCruiseDirection(CruiseDirection cruiseDirection);
+
+    void setLastCruiseUpdate(long update);
+
+    long getLastCruiseUpdate();
+
+    long getLastBlockCheck();
+
+    void setLastBlockCheck(long update);
+
+    @NotNull MovecraftLocation getLastTranslation();
+
+    void setLastTranslation(@NotNull MovecraftLocation lastTranslation);
+
+    @Deprecated(forRemoval = true)
+    default int getLastDX(){
+        return getLastTranslation().getX();
     }
 
-    public void setDisabled(boolean disabled) {
-        this.disabled = disabled;
+    @Deprecated(forRemoval = true)
+    default void setLastDX(int dX){}
+
+    @Deprecated(forRemoval = true)
+    default int getLastDY(){
+        return getLastTranslation().getY();
     }
 
-    public CruiseDirection getCruiseDirection() {
-        return cruiseDirection;
+    @Deprecated(forRemoval = true)
+    default void setLastDY(int dY){}
+
+    @Deprecated(forRemoval = true)
+    default int getLastDZ(){
+        return getLastTranslation().getZ();
     }
 
-    public void setCruiseDirection(CruiseDirection cruiseDirection) {
-        this.cruiseDirection = cruiseDirection;
-    }
+    @Deprecated(forRemoval = true)
+    default void setLastDZ(int dZ){}
 
-    public void setLastCruiseUpdate(long update) {
-        this.lastCruiseUpdate = update;
-    }
+    double getBurningFuel();
 
-    public long getLastCruiseUpdate() {
-        return lastCruiseUpdate;
-    }
+    void setBurningFuel(double burningFuel);
 
-    public long getLastBlockCheck() {
-        return lastBlockCheck;
-    }
+    int getOrigBlockCount();
 
-    public void setLastBlockCheck(long update) {
-        this.lastBlockCheck = update;
-    }
+    void setOrigBlockCount(int origBlockCount);
 
-    public int getLastDX() {
-        return lastDX;
-    }
+    @Nullable @Deprecated(forRemoval = true)
+    Player getNotificationPlayer();
 
-    public void setLastDX(int dX) {
-        this.lastDX = dX;
-    }
+    @Deprecated
+    void setNotificationPlayer(@Nullable Player notificationPlayer);
 
-    public int getLastDY() {
-        return lastDY;
-    }
+    long getOrigPilotTime();
 
-    public void setLastDY(int dY) {
-        this.lastDY = dY;
-    }
+    double getMeanCruiseTime();
 
-    public int getLastDZ() {
-        return lastDZ;
-    }
+    void addCruiseTime(float cruiseTime);
 
-    public void setLastDZ(int dZ) {
-        this.lastDZ = dZ;
-    }
-
-    public boolean getPilotLocked() {
-        return pilotLocked;
-    }
-
-    public void setPilotLocked(boolean pilotLocked) {
-        this.pilotLocked = pilotLocked;
-    }
-
-    public double getPilotLockedX() {
-        return pilotLockedX;
-    }
-
-    public void setPilotLockedX(double pilotLockedX) {
-        this.pilotLockedX = pilotLockedX;
-    }
-
-    public double getPilotLockedY() {
-        return pilotLockedY;
-    }
-
-    public void setPilotLockedY(double pilotLockedY) {
-        this.pilotLockedY = pilotLockedY;
-    }
-
-    public double getPilotLockedZ() {
-        return pilotLockedZ;
-    }
-
-    public void setPilotLockedZ(double pilotLockedZ) {
-        this.pilotLockedZ = pilotLockedZ;
-    }
-
-    public double getBurningFuel() {
-        return burningFuel;
-    }
-
-    public void setBurningFuel(double burningFuel) {
-        this.burningFuel = burningFuel;
-    }
-
-    public int getOrigBlockCount() {
-        return origBlockCount;
-    }
-
-    public void setOrigBlockCount(int origBlockCount) {
-        this.origBlockCount = origBlockCount;
-    }
-
-    @Nullable
-    public Player getNotificationPlayer() {
-        return notificationPlayer;
-    }
-
-    public void setNotificationPlayer(@Nullable Player notificationPlayer) {
-        this.notificationPlayer = notificationPlayer;
-    }
-
-    public long getOrigPilotTime() {
-        return origPilotTime;
-    }
-
-    public float getMeanCruiseTime() {
-        return meanCruiseTime;
-    }
-
-    public void addCruiseTime(float cruiseTime){
-        meanCruiseTime = (meanCruiseTime *numMoves + cruiseTime)/(++numMoves);
-    }
-
-    public int getTickCooldown() {
-        if(sinking)
-            return type.getSinkRateTicks();
-
-//        Counter<Material> counter = new Counter<>();
-//        Map<Material, Integer> counter = new HashMap<>();
-        if(materials.isEmpty()){
-            for(MovecraftLocation location : hitBox){
-                materials.add(location.toBukkit(w).getBlock().getType());
-            }
-        }
-
-        int chestPenalty = (int)((materials.get(Material.CHEST) + materials.get(Material.TRAPPED_CHEST)) * type.getChestPenalty());
-        if(!cruising)
-            return (type.getTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
-
-        // Ascent or Descent
-        if(cruiseDirection == CruiseDirection.UP || cruiseDirection == CruiseDirection.DOWN) {
-            return (type.getVertCruiseTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
-        }
-
-        // Dynamic Fly Block Speed
-        if(type.getDynamicFlyBlockSpeedFactor() != 0){
-            Material flyBlockMaterial = Material.getMaterial(type.getDynamicFlyBlock());
-            double count = materials.get(flyBlockMaterial);
-            double woolRatio = count / hitBox.size();
-            return Math.max((int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1)) / ((type.getDynamicFlyBlockSpeedFactor() * 1.5) * (woolRatio - .5) + (20.0 / (type.getCruiseTickCooldown(w) )) + 1)) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1), 1);
-        }
-
-        if(type.getDynamicLagSpeedFactor() == 0.0 || type.getDynamicLagPowerFactor() == 0.0 || Math.abs(type.getDynamicLagPowerFactor()) > 1.0)
-            return (type.getCruiseTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
-        if(numMoves == 0)
-            return (int) Math.round(20.0 * ((type.getCruiseSkipBlocks(w) + 1.0) / type.getDynamicLagMinSpeed()) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1));
-
-        if(Settings.Debug) {
-            Bukkit.getLogger().info("Skip: " + type.getCruiseSkipBlocks(w));
-            Bukkit.getLogger().info("Tick: " + type.getCruiseTickCooldown(w));
-            Bukkit.getLogger().info("SpeedFactor: " + type.getDynamicLagSpeedFactor());
-            Bukkit.getLogger().info("PowerFactor: " + type.getDynamicLagPowerFactor());
-            Bukkit.getLogger().info("MinSpeed: " + type.getDynamicLagMinSpeed());
-            Bukkit.getLogger().info("CruiseTime: " + getMeanCruiseTime() * 1000.0 + "ms");
-        }
-
-        // Dynamic Lag Speed
-        double speed = 20.0 * (type.getCruiseSkipBlocks(w) + 1.0) / (float)type.getCruiseTickCooldown(w);
-        speed -= type.getDynamicLagSpeedFactor() * Math.pow(getMeanCruiseTime() * 1000.0, type.getDynamicLagPowerFactor());
-        speed = Math.max(type.getDynamicLagMinSpeed(), speed);
-        return (int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1.0)) / speed) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
-            //In theory, the chest penalty is not needed for a DynamicLag craft.
-    }
+    int getTickCooldown();
 
     /**
      * gets the speed of a craft in blocks per second.
      * @return the speed of the craft
      */
-    public double getSpeed() {
-        if(cruiseDirection == CruiseDirection.UP || cruiseDirection == CruiseDirection.DOWN) {
-            return 20 * (type.getVertCruiseSkipBlocks(w) + 1) / (double) getTickCooldown();
-        }
-        else {
-            return 20 * (type.getCruiseSkipBlocks(w) + 1) / (double) getTickCooldown();
-        }
-    }
+    double getSpeed();
 
-    public long getLastRotateTime() {
-        return lastRotateTime;
-    }
+    long getLastRotateTime();
 
-    public void setLastRotateTime(long lastRotateTime) {
-        this.lastRotateTime = lastRotateTime;
-    }
+    void setLastRotateTime(long lastRotateTime);
 
-    public int getWaterLine(){
-        //TODO: Remove this temporary system in favor of passthrough blocks
-        // Find the waterline from the surrounding terrain or from the static level in the craft type
-        int waterLine = 0;
-        if (type.getStaticWaterLevel() != 0 || hitBox.isEmpty()) {
-            return type.getStaticWaterLevel();
-        }
-
-        // figure out the water level by examining blocks next to the outer boundaries of the craft
-        for (int posY = hitBox.getMaxY() + 1; posY >= hitBox.getMinY() - 1; posY--) {
-            int numWater = 0;
-            int numAir = 0;
-            int posX;
-            int posZ;
-            posZ = hitBox.getMinZ() - 1;
-            for (posX = hitBox.getMinX() - 1; posX <= hitBox.getMaxX() + 1; posX++) {
-                int typeID = w.getBlockAt(posX, posY, posZ).getTypeId();
-                if (typeID == 9)
-                    numWater++;
-                if (typeID == 0)
-                    numAir++;
-            }
-            posZ = hitBox.getMaxZ() + 1;
-            for (posX = hitBox.getMinX() - 1; posX <= hitBox.getMaxX() + 1; posX++) {
-                int typeID = w.getBlockAt(posX, posY, posZ).getTypeId();
-                if (typeID == 9)
-                    numWater++;
-                if (typeID == 0)
-                    numAir++;
-            }
-            posX = hitBox.getMinX() - 1;
-            for (posZ = hitBox.getMinZ(); posZ <= hitBox.getMaxZ(); posZ++) {
-                int typeID = w.getBlockAt(posX, posY, posZ).getTypeId();
-                if (typeID == 9)
-                    numWater++;
-                if (typeID == 0)
-                    numAir++;
-            }
-            posX = hitBox.getMaxX() + 1;
-            for (posZ = hitBox.getMinZ(); posZ <= hitBox.getMaxZ(); posZ++) {
-                int typeID = w.getBlockAt(posX, posY, posZ).getTypeId();
-                if (typeID == 9)
-                    numWater++;
-                if (typeID == 0)
-                    numAir++;
-            }
-            if (numWater > numAir) {
-                return posY;
-            }
-        }
-        return waterLine;
-    }
+    int getWaterLine();
 
     @NotNull
-    public Map<Location, Pair<Material, Byte>> getPhaseBlocks(){
-        return phaseBlocks;
-    }
+    Map<Location, BlockData> getPhaseBlocks();
 
     @NotNull
-    public String getName() {
-        return name;
-    }
+    String getName();
 
-    public void setName(@NotNull String name) {
-        this.name = name;
-    }
+    void setName(@NotNull String name);
 
     @NotNull
-    public BitmapHitBox getCollapsedHitBox() {
-        return collapsedHitBox;
-    }
+    MutableHitBox getCollapsedHitBox();
 
-    public abstract void resetSigns(@NotNull final Sign clicked);
+    @Deprecated(forRemoval = true)
+    void resetSigns(@NotNull final Sign clicked);
 
     @NotNull
-    public BitmapHitBox getFluidLocations() {
-        return fluidLocations;
-    }
+    MutableHitBox getFluidLocations();
 
-    public void setFluidLocations(@NotNull BitmapHitBox fluidLocations) {
-        this.fluidLocations = fluidLocations;
-    }
+    void setFluidLocations(@NotNull MutableHitBox fluidLocations);
 
-    public long getLastTeleportTime() {
-        return lastTeleportTime;
-    }
+    long getLastTeleportTime();
 
-    public void setLastTeleportTime(long lastTeleportTime) {
-        this.lastTeleportTime = lastTeleportTime;
-    }
+    void setLastTeleportTime(long lastTeleportTime);
 
-    public int getCurrentGear() {
-        return currentGear;
-    }
+    int getCurrentGear();
 
-    public void setCurrentGear(int currentGear) {
-        if (currentGear > type.getGearShifts()) {
-            this.currentGear = type.getGearShifts();
-        }
-        this.currentGear = Math.max(currentGear, 1);
-    }
+    void setCurrentGear(int currentGear);
+
+    Audience getAudience();
+
+    void setAudience(Audience audience);
 }

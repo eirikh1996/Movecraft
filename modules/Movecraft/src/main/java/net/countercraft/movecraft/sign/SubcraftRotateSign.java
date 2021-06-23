@@ -2,19 +2,18 @@ package net.countercraft.movecraft.sign;
 
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.Rotation;
+import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.craft.CraftType;
-import net.countercraft.movecraft.craft.ICraft;
+import net.countercraft.movecraft.craft.SubCraft;
 import net.countercraft.movecraft.events.CraftPilotEvent;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -30,19 +29,19 @@ public final class SubcraftRotateSign implements Listener {
     private final Set<MovecraftLocation> rotatingCrafts = new HashSet<>();
     @EventHandler
     public final void onSignClick(PlayerInteractEvent event) {
-        Rotation rotation;
+        MovecraftRotation rotation;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            rotation = Rotation.CLOCKWISE;
+            rotation = MovecraftRotation.CLOCKWISE;
         }else if(event.getAction() == Action.LEFT_CLICK_BLOCK){
-            rotation = Rotation.ANTICLOCKWISE;
+            rotation = MovecraftRotation.ANTICLOCKWISE;
         }else{
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         if (!ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase(HEADER)) {
             return;
         }
@@ -85,7 +84,7 @@ public final class SubcraftRotateSign implements Listener {
                 }
             }.runTaskLater(Movecraft.getInstance(), (10));
         }
-        final Craft subCraft = new ICraft(type, loc.getWorld());
+        final SubCraft subCraft = new SubCraft(type, loc.getWorld());
         subCraft.detect(null, event.getPlayer(), startPoint);
         rotatingCrafts.add(startPoint);
         Bukkit.getServer().getPluginManager().callEvent(new CraftPilotEvent(subCraft, CraftPilotEvent.Reason.SUB_CRAFT));

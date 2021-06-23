@@ -3,20 +3,22 @@ package net.countercraft.movecraft.sign;
 import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.craft.CraftType;
 import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.craft.BaseCraft;
+import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
-import net.countercraft.movecraft.craft.ICraft;
+import net.countercraft.movecraft.craft.CraftType;
+import net.countercraft.movecraft.craft.CruiseOnPilotCraft;
+import net.countercraft.movecraft.craft.PilotedCraft;
 import net.countercraft.movecraft.events.CraftPilotEvent;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.type.WallSign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -46,11 +48,11 @@ public final class CraftSign implements Listener{
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         CraftType type = CraftManager.getInstance().getCraftTypeFromString(ChatColor.stripColor(sign.getLine(0)));
         if (type == null) {
             return;
@@ -63,15 +65,15 @@ public final class CraftSign implements Listener{
         // Attempt to run detection
         Location loc = event.getClickedBlock().getLocation();
         MovecraftLocation startPoint = new MovecraftLocation(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
-        final Craft c = new ICraft(type, loc.getWorld());
-
-        if (c.getType().getCruiseOnPilot()) {
-            c.detect(null, event.getPlayer(), startPoint);
-            org.bukkit.material.Sign materialSign = (org.bukkit.material.Sign) block.getState().getData();
-            if(block.getType() == Material.SIGN_POST)
+        final BaseCraft c;
+        if (type.getCruiseOnPilot()) {
+            c = new CruiseOnPilotCraft(type, loc.getWorld());
+            c.detect(event.getPlayer(), event.getPlayer(), startPoint);
+            if(sign.getBlockData() instanceof WallSign) {
+                c.setCruiseDirection(CruiseDirection.fromBlockFace(((WallSign) sign.getBlockData()).getFacing()));
+            } else {
                 c.setCruiseDirection(CruiseDirection.NONE);
-            else
-                c.setCruiseDirection(CruiseDirection.fromBlockFace(materialSign.getFacing()));
+            }
             c.setLastCruiseUpdate(System.currentTimeMillis());
             c.setCruising(true);
             new BukkitRunnable() {
@@ -83,6 +85,7 @@ public final class CraftSign implements Listener{
                 }
             }.runTaskLater(Movecraft.getInstance(), (20 * 15));
         } else {
+            c = new PilotedCraft(type, loc.getWorld(), event.getPlayer());
             if (CraftManager.getInstance().getCraftByPlayer(event.getPlayer()) == null) {
                 c.detect(event.getPlayer(), event.getPlayer(), startPoint);
             } else {

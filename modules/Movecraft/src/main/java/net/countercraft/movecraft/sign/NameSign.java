@@ -4,10 +4,10 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.events.CraftDetectEvent;
-import net.countercraft.movecraft.utils.ChatUtils;
-import org.bukkit.Material;
+import net.countercraft.movecraft.util.ChatUtils;
+import org.bukkit.Tag;
 import org.bukkit.World;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -28,16 +28,20 @@ public final class NameSign implements Listener {
             return;
         }
 
-        World w = c.getW();
+        World w = c.getWorld();
 
         for (MovecraftLocation location : c.getHitBox()) {
-            Block b = location.toBukkit(w).getBlock();
-            if (b.getType() != Material.SIGN_POST && b.getType() != Material.WALL_SIGN) {
+            var block = location.toBukkit(w).getBlock();
+            if(!Tag.SIGNS.isTagged(block.getType())){
                 continue;
             }
-            Sign s = (Sign) b.getState();
-            if (s.getLine(0).equalsIgnoreCase(HEADER)) {
-                String name = Arrays.stream(s.getLines()).skip(1).filter(f -> f != null && !f.trim().isEmpty()).collect(Collectors.joining(" "));
+            BlockState state = block.getState();
+            if (!(state instanceof Sign)) {
+                return;
+            }
+            Sign sign = (Sign) state;
+            if (sign.getLine(0).equalsIgnoreCase(HEADER)) {
+                String name = Arrays.stream(sign.getLines()).skip(1).filter(f -> f != null && !f.trim().isEmpty()).collect(Collectors.joining(" "));
                 c.setName(name);
                 return;
             }

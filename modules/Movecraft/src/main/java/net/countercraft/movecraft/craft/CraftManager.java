@@ -18,7 +18,6 @@
 package net.countercraft.movecraft.craft;
 
 import net.countercraft.movecraft.Movecraft;
-import net.countercraft.movecraft.events.CraftPilotEvent;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.events.TypesReloadedEvent;
 import net.countercraft.movecraft.exception.NonCancellableReleaseException;
@@ -32,23 +31,30 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.yaml.snakeyaml.parser.ParserException;
 import org.yaml.snakeyaml.scanner.ScannerException;
 
 import java.io.File;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 
-import static net.countercraft.movecraft.utils.ChatUtils.ERROR_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.ERROR_PREFIX;
 
 public class CraftManager implements Iterable<Craft>{
     private static CraftManager ourInstance;
     @NotNull private final Set<Craft> craftList = ConcurrentHashMap.newKeySet();
-    @NotNull private final ConcurrentMap<Player, Craft> craftPlayerIndex = new ConcurrentHashMap<>();
+    @NotNull private final ConcurrentMap<Player, PlayerCraft> craftPlayerIndex = new ConcurrentHashMap<>();
     @NotNull private final ConcurrentMap<Craft, BukkitTask> releaseEvents = new ConcurrentHashMap<>();
     @NotNull private Set<CraftType> craftTypes;
     @NotNull private final WeakHashMap<Player, Long> overboards = new WeakHashMap<>();
+    @NotNull private final Set<Craft> sinking = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public static void initialize(){
         ourInstance = new CraftManager();
@@ -72,11 +78,11 @@ public class CraftManager implements Iterable<Craft>{
         File craftsFile = new File(Movecraft.getInstance().getDataFolder().getAbsolutePath() + "/types");
 
         if (craftsFile.mkdirs()) {
-            Movecraft.getInstance().saveResource("types/airship.craft", false);
-            Movecraft.getInstance().saveResource("types/airskiff.craft", false);
+            Movecraft.getInstance().saveResource("types/Airship.craft", false);
+            Movecraft.getInstance().saveResource("types/Airskiff.craft", false);
             Movecraft.getInstance().saveResource("types/BigAirship.craft", false);
             Movecraft.getInstance().saveResource("types/BigSubAirship.craft", false);
-            Movecraft.getInstance().saveResource("types/elevator.craft", false);
+            Movecraft.getInstance().saveResource("types/Elevator.craft", false);
             Movecraft.getInstance().saveResource("types/LaunchTorpedo.craft", false);
             Movecraft.getInstance().saveResource("types/Ship.craft", false);
             Movecraft.getInstance().saveResource("types/SubAirship.craft", false);
@@ -98,7 +104,7 @@ public class CraftManager implements Iterable<Craft>{
                         CraftType type = new CraftType(file);
                         craftTypes.add(type);
                     }
-                    catch (CraftType.TypeNotFoundException | ScannerException e) {
+                    catch (IllegalArgumentException | CraftType.TypeNotFoundException | ParserException | ScannerException e) {
                         Movecraft.getInstance().getLogger().log(Level.SEVERE, I18nSupport.getInternationalisedString("Startup - failure to load craft type") + " '" + file.getName() + "' " + e.getMessage());
                     }
                 }
@@ -116,10 +122,17 @@ public class CraftManager implements Iterable<Craft>{
         Bukkit.getServer().getPluginManager().callEvent(new TypesReloadedEvent());
     }
 
-    public void addCraft(@NotNull Craft c, @Nullable Player p) {
+    public void addCraft(@NotNull PlayerCraft c) {
         this.craftList.add(c);
-        if(p!=null)
-            this.craftPlayerIndex.put(p, c);
+        this.craftPlayerIndex.put(c.getPlayer(), c);
+    }
+
+    public void addCraft(@NotNull Craft c){
+        if(c instanceof PlayerCraft){
+            addCraft((PlayerCraft) c);
+        } else{
+            this.craftList.add(c);
+        }
     }
 
     public void removeCraft(@NotNull Craft c, @NotNull CraftReleaseEvent.Reason reason) {
@@ -163,7 +176,7 @@ public class CraftManager implements Iterable<Craft>{
     public Set<Craft> getCraftsInWorld(@NotNull World w) {
         Set<Craft> crafts = new HashSet<>();
         for(Craft c : this.craftList){
-            if(c.getW() == w)
+            if(c.getWorld() == w)
                 crafts.add(c);
         }
         return crafts;
@@ -171,14 +184,14 @@ public class CraftManager implements Iterable<Craft>{
 
     @Contract("null -> null")
     @Nullable
-    public Craft getCraftByPlayer(@Nullable Player p) {
+    public PlayerCraft getCraftByPlayer(@Nullable Player p) {
         if(p == null)
             return null;
         return craftPlayerIndex.get(p);
     }
 
 
-    public Craft getCraftByPlayerName(String name) {
+    public PlayerCraft getCraftByPlayerName(String name) {
         Set<Player> players = craftPlayerIndex.keySet();
         for (Player player : players) {
             if (player != null && player.getName().equals(name)) {
@@ -189,30 +202,31 @@ public class CraftManager implements Iterable<Craft>{
     }
 
     public void removeCraftByPlayer(Player player){
-        List<Craft> crafts = new ArrayList<>();
-        for(Craft c : craftList){
-            if(c.getNotificationPlayer() != null && c.getNotificationPlayer().equals(player)){
-                CraftReleaseEvent e = new CraftReleaseEvent(c, CraftReleaseEvent.Reason.DISCONNECT);
-                Bukkit.getServer().getPluginManager().callEvent(e);
-                if(e.isCancelled())
-                    continue;
-
-                crafts.add(c);
-                releaseEvents.remove(c);
-            }
+        PlayerCraft craft = craftPlayerIndex.remove(player);
+        if(craft != null){
+            craftList.remove(craft);
         }
-        craftPlayerIndex.remove(player);
-        craftList.removeAll(crafts);
     }
 
     @Nullable
+    @Deprecated
     public Player getPlayerFromCraft(@NotNull Craft c) {
-        for (Map.Entry<Player, Craft> playerCraftEntry : craftPlayerIndex.entrySet()) {
+        for (Map.Entry<Player, PlayerCraft> playerCraftEntry : craftPlayerIndex.entrySet()) {
             if (playerCraftEntry.getValue() == c) {
                 return playerCraftEntry.getKey();
             }
         }
         return null;
+    }
+
+    @NotNull
+    public Set<PlayerCraft> getPlayerCraftsInWorld(World world){
+        Set<PlayerCraft> crafts = new HashSet<>();
+        for(PlayerCraft craft : this.craftPlayerIndex.values()){
+            if(craft.getWorld() == world)
+                crafts.add(craft);
+        }
+        return crafts;
     }
 
     public void removePlayerFromCraft(Craft c) {

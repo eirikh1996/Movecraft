@@ -1,9 +1,9 @@
 name: Movecraft
-softdepend: [WorldGuard, WGCustomFlags]
 version: ${project.version}
-#version: ${env.BUILD_NUMBER}
+api-version: 1.14
+depend: [ProtocolLib]
 description: The original flight and movement plugin for minecraft.
-authors: [BaccaYarro, cccm5, TylerS1066, eirik1996]
+authors: [cccm5, BaccaYarro, TylerS1066, eirik1996, drfiveminusmint, HumorousFool]
 website: https://github.com/APDevTeam/Movecraft
 main: net.countercraft.movecraft.Movecraft
 database: false
@@ -35,3 +35,9 @@ commands:
   scuttle:
     description: Sinks piloted craft
     usage: /scuttle
+  crafttype:
+    description: Get information on a specifc craft type
+    usage: /crafttype [type] [page]
+  craftinfo:
+    description: Get information on a piloted craft
+    usage: /crafttype [player] [page]

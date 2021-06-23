@@ -2,13 +2,13 @@ package net.countercraft.movecraft.commands;
 
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.craft.CraftType;
 import net.countercraft.movecraft.craft.CraftManager;
-import net.countercraft.movecraft.craft.ICraft;
+import net.countercraft.movecraft.craft.CraftType;
+import net.countercraft.movecraft.craft.PilotedCraft;
 import net.countercraft.movecraft.events.CraftPilotEvent;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.util.MathUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
 
 public class PilotCommand implements TabExecutor {
     @Override
@@ -49,7 +49,7 @@ public class PilotCommand implements TabExecutor {
             if (oldCraft != null) {
                 CraftManager.getInstance().removeCraft(oldCraft, CraftReleaseEvent.Reason.PLAYER);
             }
-            Craft newCraft = new ICraft(craftType, player.getWorld());
+            PilotedCraft newCraft = new PilotedCraft(craftType, player.getWorld(), player);
             MovecraftLocation startPoint = MathUtils.bukkit2MovecraftLoc(player.getLocation());
             newCraft.detect(player, player, startPoint);
             Bukkit.getServer().getPluginManager().callEvent(new CraftPilotEvent(newCraft, CraftPilotEvent.Reason.PLAYER));

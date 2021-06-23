@@ -3,18 +3,17 @@ package net.countercraft.movecraft.commands;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.PlayerCraft;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.BitmapHitBox;
-import net.countercraft.movecraft.utils.HashHitBox;
-import net.countercraft.movecraft.utils.HitBox;
-import net.countercraft.movecraft.utils.TopicPaginator;
+import net.countercraft.movecraft.util.hitboxes.HitBox;
+import net.countercraft.movecraft.util.TopicPaginator;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
 
 public class ContactsCommand implements CommandExecutor {
 
@@ -64,7 +63,7 @@ public class ContactsCommand implements CommandExecutor {
             notification += tcraft.getName().length() >= 1 ? ") " : " ";
             notification += ChatColor.RESET;
             notification += I18nSupport.getInternationalisedString("Contact - Commanded By") + ", ";
-            notification += tcraft.getNotificationPlayer() != null ? tcraft.getNotificationPlayer().getDisplayName() : "null";
+            notification += tcraft instanceof PlayerCraft ? ((PlayerCraft) tcraft).getPlayer().getDisplayName() : "null";
             notification += " ";
             notification += I18nSupport.getInternationalisedString("Contact - Size")+ " ";
             notification += tcraft.getOrigBlockCount();

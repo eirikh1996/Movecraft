@@ -1,13 +1,12 @@
 package net.countercraft.movecraft.sign;
 
-import net.countercraft.movecraft.Rotation;
+import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.utils.MathUtils;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.util.MathUtils;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -29,19 +28,19 @@ public final class HelmSign implements Listener {
 
     @EventHandler
     public final void onSignClick(PlayerInteractEvent event) {
-        Rotation rotation;
+        MovecraftRotation rotation;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            rotation = Rotation.CLOCKWISE;
+            rotation = MovecraftRotation.CLOCKWISE;
         }else if(event.getAction() == Action.LEFT_CLICK_BLOCK){
-            rotation = Rotation.ANTICLOCKWISE;
+            rotation = MovecraftRotation.ANTICLOCKWISE;
         }else{
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         if (!(ChatColor.stripColor(sign.getLine(0)).equals("\\  ||  /") &&
                 ChatColor.stripColor(sign.getLine(1)).equals("==      ==") &&
                 ChatColor.stripColor(sign.getLine(2)).equals("/  ||  \\"))) {

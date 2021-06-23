@@ -17,11 +17,18 @@
 
 package net.countercraft.movecraft;
 
-import com.mewin.WGCustomFlags.WGCustomFlagsPlugin;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.flags.StateFlag;
 import net.countercraft.movecraft.async.AsyncManager;
-import net.countercraft.movecraft.commands.*;
+import net.countercraft.movecraft.commands.ContactsCommand;
+import net.countercraft.movecraft.commands.CraftInfoCommand;
+import net.countercraft.movecraft.commands.CraftReportCommand;
+import net.countercraft.movecraft.commands.CraftTypeCommand;
+import net.countercraft.movecraft.commands.CruiseCommand;
+import net.countercraft.movecraft.commands.ManOverboardCommand;
+import net.countercraft.movecraft.commands.MovecraftCommand;
+import net.countercraft.movecraft.commands.PilotCommand;
+import net.countercraft.movecraft.commands.ReleaseCommand;
+import net.countercraft.movecraft.commands.RotateCommand;
+import net.countercraft.movecraft.commands.ScuttleCommand;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.ChunkManager;
 import net.countercraft.movecraft.craft.CraftManager;
@@ -30,50 +37,72 @@ import net.countercraft.movecraft.listener.InteractListener;
 import net.countercraft.movecraft.listener.PlayerListener;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.mapUpdater.MapUpdateManager;
-import net.countercraft.movecraft.sign.*;
-import net.countercraft.movecraft.utils.WGCustomFlagsUtils;
-import net.countercraft.movecraft.worldguard.WorldGuardCompatManager;
+import net.countercraft.movecraft.processing.WorldManager;
+import net.countercraft.movecraft.sign.AscendSign;
+import net.countercraft.movecraft.sign.ContactsSign;
+import net.countercraft.movecraft.sign.CraftSign;
+import net.countercraft.movecraft.sign.CruiseSign;
+import net.countercraft.movecraft.sign.DescendSign;
+import net.countercraft.movecraft.sign.HelmSign;
+import net.countercraft.movecraft.sign.MoveSign;
+import net.countercraft.movecraft.sign.NameSign;
+import net.countercraft.movecraft.sign.PilotSign;
+import net.countercraft.movecraft.sign.RelativeMoveSign;
+import net.countercraft.movecraft.sign.ReleaseSign;
+import net.countercraft.movecraft.sign.RemoteSign;
+import net.countercraft.movecraft.sign.SpeedSign;
+import net.countercraft.movecraft.sign.StatusSign;
+import net.countercraft.movecraft.sign.SubcraftRotateSign;
+import net.countercraft.movecraft.sign.TeleportSign;
+import net.countercraft.movecraft.util.BlockHighlight;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Movecraft extends JavaPlugin {
-    public static StateFlag FLAG_PILOT = null; //new StateFlag("movecraft-pilot", true);
-    public static StateFlag FLAG_MOVE = null; //new StateFlag("movecraft-move", true);
-    public static StateFlag FLAG_ROTATE = null; //new StateFlag("movecraft-rotate", true);
-    public static StateFlag FLAG_SINK = null; //new StateFlag("movecraft-sink", true);
+
     private static Movecraft instance;
-    private static WorldGuardPlugin worldGuardPlugin;
-    private static WGCustomFlagsPlugin wgCustomFlagsPlugin = null;
-    /*public HashMap<MovecraftLocation, Long> blockFadeTimeMap = new HashMap<>();
-    public HashMap<MovecraftLocation, Integer> blockFadeTypeMap = new HashMap<>();
-    public HashMap<MovecraftLocation, Boolean> blockFadeWaterMap = new HashMap<>();
-    public HashMap<MovecraftLocation, World> blockFadeWorldMap = new HashMap<>();*/
+    private static BukkitAudiences adventure = null;
     private Logger logger;
     private boolean shuttingDown;
     private WorldHandler worldHandler;
-
-
     private AsyncManager asyncManager;
 
     public static synchronized Movecraft getInstance() {
         return instance;
     }
 
+    @NotNull
+    public static BukkitAudiences getAdventure(){
+        if(adventure == null) {
+            throw new IllegalStateException("Tried to access Adventure when the plugin was disabled!");
+        }
+        return adventure;
+    }
+
     @Override
     public void onDisable() {
         shuttingDown = true;
+        if(adventure != null) {
+            adventure.close();
+            adventure = null;
+        }
     }
 
     @Override
     public void onEnable() {
         // Read in config
-        this.saveDefaultConfig();
         try {
             Class.forName("com.destroystokyo.paper.Title");
             Settings.IsPaper = true;
@@ -83,7 +112,6 @@ public class Movecraft extends JavaPlugin {
 
 
         Settings.LOCALE = getConfig().getString("Locale");
-        Settings.RestrictSiBsToRegions = getConfig().getBoolean("RestrictSiBsToRegions", false);
         Settings.Debug = getConfig().getBoolean("Debug", false);
         Settings.DisableSpillProtection = getConfig().getBoolean("DisableSpillProtection", false);
         Settings.DisableIceForm = getConfig().getBoolean("DisableIceForm", true);
@@ -104,7 +132,7 @@ public class Movecraft extends JavaPlugin {
         if (getConfig().getInt("PilotTool") != 0) {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - Recognized Pilot Tool")
                     + getConfig().getInt("PilotTool"));
-            Settings.PilotTool = getConfig().getInt("PilotTool");
+            Settings.PilotTool = Material.valueOf(getConfig().getString("PilotTool"));
         } else {
             logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - No Pilot Tool"));
         }
@@ -143,7 +171,7 @@ public class Movecraft extends JavaPlugin {
             for (String str : temp.keySet()) {
                 Material type;
                 try {
-                    type = Material.getMaterial(Integer.parseInt(str));
+                    type = Material.getMaterial(str);
                 } catch (NumberFormatException e) {
                     type = Material.getMaterial(str);
                 }
@@ -152,7 +180,11 @@ public class Movecraft extends JavaPlugin {
         }
 
         Settings.CollisionPrimer = getConfig().getInt("CollisionPrimer", 1000);
-        Settings.DisableShadowBlocks = new HashSet<>(getConfig().getIntegerList("DisableShadowBlocks"));  //REMOVE FOR PUBLIC VERSION
+        Settings.DisableShadowBlocks = EnumSet.noneOf(Material.class);  //REMOVE FOR PUBLIC VERSION
+//        for(String s : getConfig().getStringList("DisableShadowBlocks")){
+//            Settings.DisableShadowBlocks.add(Material.valueOf(s));
+//        }
+
         Settings.ForbiddenRemoteSigns = new HashSet<>();
 
         for(String s : getConfig().getStringList("ForbiddenRemoteSigns")) {
@@ -160,50 +192,11 @@ public class Movecraft extends JavaPlugin {
         }
 
         if (!Settings.CompatibilityMode) {
-            for (int typ : Settings.DisableShadowBlocks) {
-                worldHandler.disableShadow(Material.getMaterial(typ));
+            for (Material typ : Settings.DisableShadowBlocks) {
+                worldHandler.disableShadow(typ);
             }
         }
-        //load up WorldGuard if it's present
-        Plugin wGPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
-        if (wGPlugin == null || !(wGPlugin instanceof WorldGuardPlugin)) {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WG Not Found"));
-            Settings.RestrictSiBsToRegions = false;
-        } else {
-            logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WG Found"));
-            Settings.WorldGuardBlockMoveOnBuildPerm = getConfig().getBoolean("WorldGuardBlockMoveOnBuildPerm", false);
-            Settings.WorldGuardBlockSinkOnPVPPerm = getConfig().getBoolean("WorldGuardBlockSinkOnPVPPerm", false);
-            logger.log(Level.INFO, "Settings: WorldGuardBlockMoveOnBuildPerm - {0}, WorldGuardBlockSinkOnPVPPerm - {1}", new Object[]{Settings.WorldGuardBlockMoveOnBuildPerm, Settings.WorldGuardBlockSinkOnPVPPerm});
-            getServer().getPluginManager().registerEvents(new WorldGuardCompatManager(), this);
-        }
-        worldGuardPlugin = (WorldGuardPlugin) wGPlugin;
-
-
-        if (worldGuardPlugin != null && worldGuardPlugin instanceof WorldGuardPlugin) {
-            if (worldGuardPlugin.isEnabled()) {
-                Plugin tempWGCustomFlagsPlugin = getServer().getPluginManager().getPlugin("WGCustomFlags");
-                if (tempWGCustomFlagsPlugin != null && tempWGCustomFlagsPlugin instanceof WGCustomFlagsPlugin) {
-                    logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WGCF Found"));
-                    wgCustomFlagsPlugin = (WGCustomFlagsPlugin) tempWGCustomFlagsPlugin;
-                    WGCustomFlagsUtils WGCFU = new WGCustomFlagsUtils();
-                    FLAG_PILOT = WGCFU.getNewStateFlag("movecraft-pilot", true);
-                    FLAG_MOVE = WGCFU.getNewStateFlag("movecraft-move", true);
-                    FLAG_ROTATE = WGCFU.getNewStateFlag("movecraft-rotate", true);
-                    FLAG_SINK = WGCFU.getNewStateFlag("movecraft-sink", true);
-                    WGCFU.init();
-                    Settings.WGCustomFlagsUsePilotFlag = getConfig().getBoolean("WGCustomFlagsUsePilotFlag", false);
-                    Settings.WGCustomFlagsUseMoveFlag = getConfig().getBoolean("WGCustomFlagsUseMoveFlag", false);
-                    Settings.WGCustomFlagsUseRotateFlag = getConfig().getBoolean("WGCustomFlagsUseRotateFlag", false);
-                    Settings.WGCustomFlagsUseSinkFlag = getConfig().getBoolean("WGCustomFlagsUseSinkFlag", false);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUsePilotFlag - {0}", Settings.WGCustomFlagsUsePilotFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseMoveFlag - {0}", Settings.WGCustomFlagsUseMoveFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseRotateFlag - {0}", Settings.WGCustomFlagsUseRotateFlag);
-                    logger.log(Level.INFO, "Settings: WGCustomFlagsUseSinkFlag - {0}", Settings.WGCustomFlagsUseSinkFlag);
-                } else {
-                    logger.log(Level.INFO, I18nSupport.getInternationalisedString("Startup - WGCF Not Found"));
-                }
-            }
-        }
+        adventure = BukkitAudiences.create(this);
         
         if (shuttingDown && Settings.IGNORE_RESET) {
             logger.log(
@@ -218,13 +211,17 @@ public class Movecraft extends JavaPlugin {
         } else {
 
             // Startup procedure
+            initializeDatapack();
             asyncManager = new AsyncManager();
             asyncManager.runTaskTimer(this, 0, 1);
             MapUpdateManager.getInstance().runTaskTimer(this, 0, 1);
 
             CraftManager.initialize();
+            Bukkit.getScheduler().runTaskTimer(this, WorldManager.INSTANCE::run, 0,1);
+
 
             getServer().getPluginManager().registerEvents(new InteractListener(), this);
+            getServer().getPluginManager().registerEvents(new BlockHighlight(), this);
 
             this.getCommand("movecraft").setExecutor(new MovecraftCommand());
             this.getCommand("release").setExecutor(new ReleaseCommand());
@@ -235,6 +232,8 @@ public class Movecraft extends JavaPlugin {
             this.getCommand("manoverboard").setExecutor(new ManOverboardCommand());
             this.getCommand("contacts").setExecutor(new ContactsCommand());
             this.getCommand("scuttle").setExecutor(new ScuttleCommand());
+            this.getCommand("crafttype").setExecutor(new CraftTypeCommand());
+            this.getCommand("craftinfo").setExecutor(new CraftInfoCommand());
 
             getServer().getPluginManager().registerEvents(new BlockListener(), this);
             getServer().getPluginManager().registerEvents(new PlayerListener(), this);
@@ -267,17 +266,61 @@ public class Movecraft extends JavaPlugin {
         super.onLoad();
         instance = this;
         logger = getLogger();
+        this.saveDefaultConfig();
+
     }
 
+    private void initializeDatapack(){
+        if(this.getConfig().getBoolean("GeneratedDatapack")){
+            return;
+        }
+        File datapackDirectory = null;
+        for(var world : this.getServer().getWorlds()){
+            datapackDirectory = new File(world.getWorldFolder(), "datapacks");
+            if(datapackDirectory.exists()){
+                break;
+            }
+        }
+        if(datapackDirectory == null){
+            logger.severe("Failed to initialize movecraft data pack due to first time world initialization.");
+            return;
+        }
+        if(!datapackDirectory.exists()){
+            logger.info("Creating a datapack directory at " + datapackDirectory.getPath());
+            if(!datapackDirectory.mkdir()){
+                logger.severe("Failed to create datapack directory!");
+                return;
+            }
+        } else if(new File(datapackDirectory, "movecraft-data.zip").exists()){
+            logger.warning("Conflicting datapack already exists in " + datapackDirectory.getPath() + ". If you would like to regenerate the datapack, delete the existing one and set the GeneratedDatapack config option to false.");
+            this.getConfig().set("GeneratedDatapack", true);
+            this.saveConfig();
+            return;
+        }
+        if(!datapackDirectory.canWrite()){
+            logger.warning("Missing permissions to write to world directory.");
+            return;
+        }
 
-
-    public WorldGuardPlugin getWorldGuardPlugin() {
-        return worldGuardPlugin;
+        try (var stream = new FileOutputStream(new File(datapackDirectory, "movecraft-data.zip"));
+             var pack = this.getResource("movecraft-data.zip")) {
+            if(pack == null){
+                logger.warning("No internal datapack found, report this.");
+                return;
+            }
+            pack.transferTo(stream);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        logger.info("Saved default movecraft datapack.");
+        this.getConfig().set("GeneratedDatapack", true);
+        this.saveConfig();
+        if(!Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "datapack enable \"file/movecraft-data.zip\"")){
+            logger.severe("Failed to automatically load movecraft datapack. Check if it exists.");
+        }
     }
 
-    public WGCustomFlagsPlugin getWGCustomFlagsPlugin() {
-        return wgCustomFlagsPlugin;
-    }
 
     public WorldHandler getWorldHandler(){
         return worldHandler;

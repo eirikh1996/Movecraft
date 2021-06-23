@@ -21,9 +21,11 @@ import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.craft.CraftType;
+import net.countercraft.movecraft.craft.PlayerCraft;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.MathUtils;
-import org.bukkit.Material;
+import net.countercraft.movecraft.util.MathUtils;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Switch;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -42,15 +44,17 @@ public final class InteractListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         }
-        Material m = event.getClickedBlock().getType();
-        if (!m.equals(Material.WOOD_BUTTON) && !m.equals(Material.STONE_BUTTON)) {
+        BlockData data = event.getClickedBlock().getBlockData();
+        if (!(data instanceof Switch)) {
             return;
         }
         if (event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         } // if they left click a button which is pressed, unpress it
-        if (event.getClickedBlock().getData() >= 8) {
-            event.getClickedBlock().setData((byte) (event.getClickedBlock().getData() - 8));
+        Switch state = (Switch) data;
+        if (state.isPowered()) {
+            state.setPowered(false);
+            event.getClickedBlock().setBlockData(state);
         }
     }
 
@@ -64,9 +68,9 @@ public final class InteractListener implements Listener {
 
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             final Player player = event.getPlayer();
-            Craft craft = CraftManager.getInstance().getCraftByPlayer(player);
+            PlayerCraft craft = CraftManager.getInstance().getCraftByPlayer(player);
 
-            if (event.getItem() == null || event.getItem().getTypeId() != Settings.PilotTool) {
+            if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
                 return;
             }
             event.setCancelled(true);
@@ -76,7 +80,7 @@ public final class InteractListener implements Listener {
             final CraftType type = craft.getType();
             int currentGear = craft.getCurrentGear();
             Long time = timeMap.get(player);
-            int tickCooldown = craft.getType().getTickCooldown(craft.getW());
+            int tickCooldown = craft.getType().getTickCooldown(craft.getWorld());
             if (type.getGearShiftsAffectDirectMovement() && type.getGearShiftsAffectTickCooldown()) {
                 tickCooldown *= currentGear;
             }
@@ -85,7 +89,7 @@ public final class InteractListener implements Listener {
 
                 // if the craft should go slower underwater, make time
                 // pass more slowly there
-                if (craft.getType().getHalfSpeedUnderwater() && craft.getHitBox().getMinY() < craft.getW().getSeaLevel())
+                if (craft.getType().getHalfSpeedUnderwater() && craft.getHitBox().getMinY() < craft.getWorld().getSeaLevel())
                     ticksElapsed = ticksElapsed >> 1;
 
 
@@ -142,10 +146,10 @@ public final class InteractListener implements Listener {
             return;
         }
         if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            if (event.getItem() == null || event.getItem().getTypeId() != Settings.PilotTool) {
+            if (event.getItem() == null || event.getItem().getType() != Settings.PilotTool) {
                 return;
             }
-            Craft craft = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());
+            PlayerCraft craft = CraftManager.getInstance().getCraftByPlayer(event.getPlayer());
             if (craft == null) {
                 return;
             }

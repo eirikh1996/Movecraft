@@ -3,7 +3,6 @@ package net.countercraft.movecraft.sign;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
@@ -20,7 +19,7 @@ public final class RelativeMoveSign implements Listener{
             return;
         }
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        if (!(block.getState() instanceof Sign)) {
             return;
         }
         Sign sign = (Sign) event.getClickedBlock().getState();

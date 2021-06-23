@@ -19,27 +19,25 @@ package net.countercraft.movecraft.config;
 
 import org.bukkit.Material;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 public class Settings {
-    public static boolean RestrictSiBsToRegions = false;
     public static boolean IGNORE_RESET = false;
     public static boolean Debug = false;
     public static int THREAD_POOL_SIZE = 5;
     public static List<Integer> DATA_BLOCKS;
     public static String LOCALE;
-    public static int PilotTool = 280;
+    public static Material PilotTool = Material.STICK;
     public static int SilhouetteViewDistance = 200;
     public static int SilhouetteBlockCount = 20;
     public static boolean CompatibilityMode = false;
     public static boolean DelayColorChanges = false;
     public static double SinkRateTicks = 20.0;
     public static double SinkCheckTicks = 100.0;
-    public static boolean WorldGuardBlockMoveOnBuildPerm = false;
-    public static boolean WorldGuardBlockSinkOnPVPPerm = false;
     public static boolean ProtectPilotedCrafts = false;
     public static boolean DisableSpillProtection = false;
     public static boolean DisableIceForm = true;
@@ -53,13 +51,9 @@ public class Settings {
     public static double ManOverboardDistSquared = 1000000;
     public static int CollisionPrimer = 1000;
     public static int MaxRemoteSigns = -1;
-    public static boolean WGCustomFlagsUsePilotFlag = false;
-    public static boolean WGCustomFlagsUseMoveFlag = false;
-    public static boolean WGCustomFlagsUseRotateFlag = false;
-    public static boolean WGCustomFlagsUseSinkFlag = false;
     public static boolean CraftsUseNetherPortals = false;
     public static boolean IsPaper = false;
 
-    public static HashSet<Integer> DisableShadowBlocks;
+    public static EnumSet<Material> DisableShadowBlocks;
     public static HashSet<String> ForbiddenRemoteSigns;
 }

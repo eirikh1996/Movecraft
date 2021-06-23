@@ -17,61 +17,44 @@
 
 package net.countercraft.movecraft.listener;
 
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
-import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.MathUtils;
-import org.bukkit.*;
+import net.countercraft.movecraft.util.MathUtils;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Hopper;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.*;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDispenseEvent;
+import org.bukkit.event.block.BlockFormEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockPhysicsEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.material.Attachable;
-import org.bukkit.material.MaterialData;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.EnumSet;
 
 public class BlockListener implements Listener {
-    @EventHandler
-    public void onBlockPlace(final BlockPlaceEvent e) {
-        if (!Settings.RestrictSiBsToRegions ||
-                e.getBlockPlaced().getTypeId() != 54 ||
-                !e.getItemInHand().hasItemMeta() ||
-                !e.getItemInHand().getItemMeta().hasLore()) {
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockBreak(final BlockBreakEvent e) {
+        if (e.isCancelled()) {
             return;
         }
-        List<String> loreList = e.getItemInHand().getItemMeta().getLore();
-        for (String lore : loreList) {
-            if (!lore.contains("SiB")) {
-                continue;
-            }
-            if (lore.toLowerCase().contains("merchant") || lore.toLowerCase().contains("mm")) {
-                return;
-            }
-            Location loc = e.getBlockPlaced().getLocation();
-            ApplicableRegionSet regions = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(loc.getWorld()).getApplicableRegions(loc);
-            if (regions.size() == 0) {
-                e.getPlayer().sendMessage(I18nSupport.getInternationalisedString("SIB MUST BE PLACED IN REGION"));
-                e.setCancelled(true);
-                break;
-            }
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onBlockBreak(final BlockBreakEvent e) {
-        if (e.getBlock().getType() == Material.WALL_SIGN) {
+        if (e.getBlock().getState() instanceof Sign) {
             Sign s = (Sign) e.getBlock().getState();
             if (s.getLine(0).equalsIgnoreCase(ChatColor.RED + I18nSupport.getInternationalisedString("Region Damaged"))) {
                 e.setCancelled(true);
@@ -136,8 +119,8 @@ public class BlockListener implements Listener {
         for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(block.getWorld())) {
             MovecraftLocation mloc = new MovecraftLocation(block.getX(), block.getY(), block.getZ());
             if (MathUtils.locIsNearCraftFast(tcraft, mloc) &&
-                    tcraft.getCruising() && (block.getTypeId() == 29 ||
-                    block.getTypeId() == 33 || block.getTypeId() == 23 &&
+                    tcraft.getCruising() && (block.getType() == Material.STICKY_PISTON ||
+                    block.getType() == Material.PISTON || block.getType() == Material.DISPENSER &&
                     !tcraft.isNotProcessing())) {
                 event.setNewCurrent(event.getOldCurrent()); // don't allow piston movement on cruising crafts
                 return;
@@ -185,18 +168,23 @@ public class BlockListener implements Listener {
 
         Block block = event.getBlock();
 
-        final int[] fragileBlocks = new int[]{26, 34, 50, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 193, 194, 195, 196, 197};
+//        final int[] fragileBlocks = new int[]{26, 34, 50, 55, 63, 64, 65, 68, 69, 70, 71, 72, 75, 76, 77, 93, 94, 96, 131, 132, 143, 147, 148, 149, 150, 151, 171, 193, 194, 195, 196, 197};
+        final EnumSet<Material> fragileMaterials = EnumSet.of(Material.PISTON_HEAD, Material.TORCH, Material.REDSTONE_WIRE, Material.LADDER);
+        fragileMaterials.addAll(Tag.DOORS.getValues());
+        fragileMaterials.addAll(Tag.CARPETS.getValues());
+        fragileMaterials.addAll(Tag.RAILS.getValues());
+        fragileMaterials.addAll(Tag.WOODEN_PRESSURE_PLATES.getValues());
         CraftManager.getInstance().getCraftsInWorld(block.getWorld());
         for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(block.getWorld())) {
             MovecraftLocation mloc = new MovecraftLocation(block.getX(), block.getY(), block.getZ());
             if (!MathUtils.locIsNearCraftFast(tcraft, mloc)) {
                 continue;
             }
-            if (Arrays.binarySearch(fragileBlocks, block.getTypeId()) >= 0) {
-                MaterialData m = block.getState().getData();
+            if (fragileMaterials.contains(event.getBlock().getType())) {
+                BlockData m = block.getBlockData();
                 BlockFace face = BlockFace.DOWN;
                 boolean faceAlwaysDown = false;
-                if (block.getTypeId() == 149 || block.getTypeId() == 150 || block.getTypeId() == 93 || block.getTypeId() == 94)
+                if (block.getType() == Material.COMPARATOR || block.getType() == Material.REPEATER)
                     faceAlwaysDown = true;
                 if (m instanceof Attachable && !faceAlwaysDown) {
                     face = ((Attachable) m).getAttachedFace();
@@ -245,7 +233,7 @@ public class BlockListener implements Listener {
         if (e.isCancelled() || !Settings.DisableIceForm) {
             return;
         }
-        if(e.getBlock().getType() != Material.WATER && e.getBlock().getType() != Material.STATIONARY_WATER)
+        if(e.getBlock().getType() != Material.WATER)
             return;
         MovecraftLocation loc = MathUtils.bukkit2MovecraftLoc(e.getBlock().getLocation());
         Craft craft = CraftManager.getInstance().fastNearestCraftToLoc(e.getBlock().getLocation());
