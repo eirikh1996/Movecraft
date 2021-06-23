@@ -34,6 +34,27 @@ mvn clean install
 ```
 Jars are located in `/target`.
 
+## For developers
+
+### Maven
+
+```xml
+	<repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+```
+
+```xml
+<dependency>
+	    <groupId>com.github.eirikh1996</groupId>
+	    <artifactId>Movecraft</artifactId>
+	    <version>v7.0.0.2-for-1.8.8-1.17</version>
+	</dependency>
+```
+
 ## Support
 [Github Issues](https://github.com/eirikh1996/Movecraft/issues)
 
