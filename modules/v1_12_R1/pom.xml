@@ -17,12 +17,6 @@
         <version>parent</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    <repositories>
-        <repository>
-            <id>sk89q-repo</id>
-            <url>http://maven.sk89q.com/repo/</url>
-        </repository>
-    </repositories>
     <dependencies>
         <dependency>
             <groupId>net.countercraft</groupId>

@@ -292,7 +292,9 @@ public class IWorldHandler extends WorldHandler {
                 chunkSection = chunk.getSections()[position.getY() >> 4];
 
             }
-            chunkSection.setType(position.getX()&15, position.getY()&15, position.getZ()&15, data);
+            chunk.setType(position, data, true);
+            if (chunkSection != null)
+                chunkSection.setType(position.getX()&15, position.getY()&15, position.getZ()&15, data);
             //world.notifyAndUpdatePhysics(position, chunk, data, data, data, 3);
             world.update(position, data.getBlock());
         }
@@ -343,7 +345,9 @@ public class IWorldHandler extends WorldHandler {
             chunkSection = chunk.getSections()[position.getY() >> 4];
 
         }
-        chunkSection.setType(position.getX() & 15, position.getY() & 15, position.getZ() & 15, data);
+        chunk.setType(position, data, true);
+        if (chunkSection != null)
+            chunkSection.setType(position.getX() & 15, position.getY() & 15, position.getZ() & 15, data);
         world.notify(position, data, data, 3);
         world.getChunkProvider().getLightEngine().a(position);
         chunk.markDirty();

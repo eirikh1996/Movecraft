@@ -20,6 +20,7 @@ package net.countercraft.movecraft.craft;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.utils.BlockContainer;
 import net.countercraft.movecraft.utils.BlockLimitManager;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -226,18 +227,18 @@ final public class CraftType {
             }
         });
 
-        int value = Math.min(integerFromObject(data.getOrDefault("maxHeightLimit", 254)), 255);
+        int value = Math.min(integerFromObject(data.getOrDefault("maxHeightLimit", 254)), Bukkit.getWorlds().get(0).getMaxHeight());
         if (value <= minHeightLimit) {
-            value = 255;
+            value = Bukkit.getWorlds().get(0).getMaxHeight();
         }
 
         maxHeightLimit = value;
         perWorldMaxHeightLimit = new HashMap<>();
         Map<String, Integer> maxHeightMap = stringToIntMapFromObject(data.getOrDefault("perWorldMaxHeightLimit", new HashMap<>()));
         maxHeightMap.forEach((world, height) -> {
-            int worldValue = Math.min(height, 255);
+            int worldValue = Math.min(height, Bukkit.getWorlds().get(0).getMaxHeight());
             int worldMinHeight = perWorldMinHeightLimit.getOrDefault(world, minHeightLimit);
-            if (worldValue <= worldMinHeight) worldValue = 255;
+            if (worldValue <= worldMinHeight) worldValue = Bukkit.getWorlds().get(0).getMaxHeight();
             perWorldMaxHeightLimit.put(world, worldValue);
         });
         
