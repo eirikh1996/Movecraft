@@ -24,7 +24,7 @@ public class AscendSign implements Listener {
         for(MovecraftLocation location: event.getCraft().getHitBox()){
             Block block = location.toBukkit(world).getBlock();
             if(!SignUtils.isSign(block)){
-                return;
+                continue;
             }
             Sign sign = (Sign) block.getState();
             if (ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase("Ascend: ON")) {
