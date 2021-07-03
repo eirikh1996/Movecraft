@@ -255,6 +255,7 @@ public class Movecraft extends JavaPlugin {
         Settings.IsPre1_9 = versionNumber < 9;
         Settings.IsLegacy = versionNumber <= 12;
         Settings.is1_14 = versionNumber >= 14;
+        Settings.IsV1_17 = versionNumber >= 17;
         instance = this;
         logger = getLogger();
     }

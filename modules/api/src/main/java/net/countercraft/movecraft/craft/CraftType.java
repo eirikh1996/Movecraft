@@ -33,6 +33,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 
 import static java.lang.Math.max;
@@ -193,10 +195,36 @@ final public class CraftType {
         smokeOnSink = integerFromObject(data.getOrDefault("smokeOnSink", 0));
         explodeOnCrash = floatFromObject(data.getOrDefault("explodeOnCrash", 0F));
         collisionExplosion = floatFromObject(data.getOrDefault("collisionExplosion", 0F));
-        minHeightLimit = max(0, integerFromObject(data.getOrDefault("minHeightLimit", 0)));
+        int minHeight = 0;
+        if (Settings.IsV1_17) {
+            final Method getMinHeight;
+            try {
+                getMinHeight = World.class.getDeclaredMethod("getMinHeight");
+                minHeight = (int) getMinHeight.invoke(Bukkit.getWorlds().get(0));
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
+        }
+        minHeightLimit = max(minHeight, integerFromObject(data.getOrDefault("minHeightLimit", 0)));
         perWorldMinHeightLimit = new HashMap<>();
         Map<String, Integer> minHeightMap = stringToIntMapFromObject(data.getOrDefault("perWorldMinHeightLimit", new HashMap<>()));
-        minHeightMap.forEach((world, height) -> perWorldMinHeightLimit.put(world, max(0, height)));
+        minHeightMap.forEach((world, height) -> {
+            int worldMinHeight = 0;
+            if (Settings.IsV1_17) {
+                final Method getMinHeight;
+                final World foundWorld = Bukkit.getWorld(world);
+                if (world != null) {
+                    try {
+                        getMinHeight = World.class.getDeclaredMethod("getMinHeight");
+                        worldMinHeight = (int) getMinHeight.invoke(foundWorld);
+                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+
+                    }
+                }
+
+            }
+            perWorldMinHeightLimit.put(world, max(worldMinHeight, height));
+        });
 
         double cruiseSpeed = doubleFromObject(data.getOrDefault("cruiseSpeed", 20.0 / tickCooldown));
         cruiseTickCooldown = (int) Math.round((1.0 + cruiseSkipBlocks) * 20.0 / cruiseSpeed);
