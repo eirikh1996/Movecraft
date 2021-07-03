@@ -156,10 +156,13 @@ public class EntityUpdateCommand extends UpdateCommand {
             craft.setPilotLockedX(craft.getPilotLockedX() + x);
             craft.setPilotLockedY(craft.getPilotLockedY() + y);
             craft.setPilotLockedZ(craft.getPilotLockedZ() + z);
-            location = new Location(world, craft.getPilotLockedX(), craft.getPilotLockedY(), craft.getPilotLockedZ());
-        } else {
-            location = new Location(world, playerLoc.getX() + x, playerLoc.getY() + y, playerLoc.getZ() + z);
+
         }
+        if (craft != null && craft.getType().getLockPilotAtDirectControl())
+            location = new Location(world, craft.getPilotLockedX(), craft.getPilotLockedY(), craft.getPilotLockedZ());
+        else
+            location = new Location(world, playerLoc.getX() + x, playerLoc.getY() + y, playerLoc.getZ() + z);
+
         //Movecraft.getInstance().getWorldHandler().addPlayerLocation((Player) entity,x,y,z,yaw,pitch);
         TeleportUtils.teleport((Player) entity, location, yaw);
     }

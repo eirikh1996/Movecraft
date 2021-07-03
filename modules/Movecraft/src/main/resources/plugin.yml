@@ -6,6 +6,10 @@ authors: [BaccaYarro, cccm5, TylerS1066, eirik1996]
 website: https://github.com/APDevTeam/Movecraft
 main: net.countercraft.movecraft.Movecraft
 database: false
+softdepend:
+  - Multiverse-Core
+  - Multiverse
+  - Multiworld
 commands:
   movecraft:
     description: base movecraft command

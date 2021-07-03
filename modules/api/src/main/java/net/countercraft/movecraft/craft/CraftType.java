@@ -227,18 +227,20 @@ final public class CraftType {
             }
         });
 
-        int value = Math.min(integerFromObject(data.getOrDefault("maxHeightLimit", 254)), Bukkit.getWorlds().get(0).getMaxHeight());
+        final int defaultMaxHeight = Bukkit.getWorlds().get(0).getMaxHeight() - 1;
+        int value = Math.min(integerFromObject(data.getOrDefault("maxHeightLimit", defaultMaxHeight)), defaultMaxHeight);
         if (value <= minHeightLimit) {
-            value = Bukkit.getWorlds().get(0).getMaxHeight();
+            value = defaultMaxHeight;
         }
 
         maxHeightLimit = value;
         perWorldMaxHeightLimit = new HashMap<>();
         Map<String, Integer> maxHeightMap = stringToIntMapFromObject(data.getOrDefault("perWorldMaxHeightLimit", new HashMap<>()));
         maxHeightMap.forEach((world, height) -> {
-            int worldValue = Math.min(height, Bukkit.getWorlds().get(0).getMaxHeight());
+            final World foundWorld = Bukkit.getWorld(world);
+            int worldValue = Math.min(height, foundWorld != null ? foundWorld.getMaxHeight() : 255);
             int worldMinHeight = perWorldMinHeightLimit.getOrDefault(world, minHeightLimit);
-            if (worldValue <= worldMinHeight) worldValue = Bukkit.getWorlds().get(0).getMaxHeight();
+            if (worldValue <= worldMinHeight) worldValue = defaultMaxHeight;
             perWorldMaxHeightLimit.put(world, worldValue);
         });
         
@@ -665,7 +667,10 @@ final public class CraftType {
         return canCruise;
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getCruiseSkipBlocks() {
         return cruiseSkipBlocks;
     }
@@ -673,7 +678,10 @@ final public class CraftType {
         return perWorldCruiseSkipBlocks.getOrDefault(world.getName(), cruiseSkipBlocks);
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getVertCruiseSkipBlocks() {
         return vertCruiseSkipBlocks;
     }
@@ -730,7 +738,10 @@ final public class CraftType {
         return allowRemoteSign;
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public double getFuelBurnRate() {
         return fuelBurnRate;
     }
@@ -746,7 +757,10 @@ final public class CraftType {
         return overallSinkPercent;
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public double getDetectionMultiplier() {
         return detectionMultiplier;
     }
@@ -754,7 +768,10 @@ final public class CraftType {
         return perWorldDetectionMultiplier.getOrDefault(world.getName(), detectionMultiplier);
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public double getUnderwaterDetectionMultiplier() {
         return underwaterDetectionMultiplier;
     }
@@ -782,7 +799,10 @@ final public class CraftType {
         return collisionExplosion;
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getTickCooldown() {
         return tickCooldown;
     }
@@ -790,7 +810,10 @@ final public class CraftType {
         return perWorldTickCooldown.getOrDefault(world.getName(), tickCooldown);
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getCruiseTickCooldown() {
         return cruiseTickCooldown;
     }
@@ -799,7 +822,10 @@ final public class CraftType {
         return perWorldCruiseTickCooldown.getOrDefault(world.getName(), cruiseTickCooldown);
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getVertCruiseTickCooldown() {
         return vertCruiseTickCooldown;
     }
@@ -834,15 +860,21 @@ final public class CraftType {
         return moveBlocks;
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getMaxHeightLimit() {
         return maxHeightLimit;
     }
     public int getMaxHeightLimit(@NotNull World world) {
-        return perWorldMaxHeightLimit.getOrDefault(world.getName(), maxHeightLimit);
+        return perWorldMaxHeightLimit.getOrDefault(world.getName(), Math.min(maxHeightLimit, world.getMaxHeight() - 1));
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getMinHeightLimit() {
         return minHeightLimit;
     }
@@ -850,7 +882,10 @@ final public class CraftType {
         return perWorldMinHeightLimit.getOrDefault(world.getName(), minHeightLimit);
     }
 
-    @Deprecated
+    @Deprecated(
+            since = "7.0.0 beta 5",
+            forRemoval = true
+    )
     public int getMaxHeightAboveGround() {
         return maxHeightAboveGround;
     }
