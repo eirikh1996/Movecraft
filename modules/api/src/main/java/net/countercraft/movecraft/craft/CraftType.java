@@ -40,6 +40,10 @@ import java.util.*;
 import static java.lang.Math.max;
 
 final public class CraftType {
+    //Mandatory flags
+    @NotNull private final String craftName;
+    @NotNull private final BlockContainer allowedBlocks;
+
     private final boolean blockedByWater;
     private final boolean requireWaterContact;
     private final boolean tryNudge;
@@ -73,6 +77,7 @@ final public class CraftType {
     private final int maxHeightAboveGround;
     @NotNull private final Map<String, Integer> perWorldMaxHeightAboveGround;
     private final int cruiseOnPilotVertMove;
+    private final int cruiseOnPilotSinkAfter;
     private final int maxStaticMove;
     private final int cruiseSkipBlocks;
     @NotNull private final Map<String, Integer> perWorldCruiseSkipBlocks;
@@ -106,8 +111,6 @@ final public class CraftType {
     private final double chestPenalty;
     private final float explodeOnCrash;
     private final float collisionExplosion;
-    @NotNull private final String craftName;
-    @NotNull private final BlockContainer allowedBlocks;
     @NotNull private final BlockContainer interiorBlocks;
     @NotNull private final BlockContainer forbiddenBlocks;
     @NotNull private final String[] forbiddenSignStrings;
@@ -168,6 +171,7 @@ final public class CraftType {
         canBeNamed = (boolean) data.getOrDefault("canBeNamed", true);
         cruiseOnPilot = (boolean) data.getOrDefault("cruiseOnPilot", false);
         cruiseOnPilotVertMove = integerFromObject(data.getOrDefault("cruiseOnPilotVertMove", 0));
+        cruiseOnPilotSinkAfter = integerFromObject(data.getOrDefault("cruiseOnPilotSinkAfter", 15));
         allowVerticalMovement = (boolean) data.getOrDefault("allowVerticalMovement", true);
         rotateAtMidpoint = (boolean) data.getOrDefault("rotateAtMidpoint", false);
         allowHorizontalMovement = (boolean) data.getOrDefault("allowHorizontalMovement", true);
@@ -1085,6 +1089,10 @@ final public class CraftType {
     @NotNull
     public BlockContainer getInteriorBlocks() {
         return interiorBlocks;
+    }
+
+    public int getCruiseOnPilotSinkAfter() {
+        return cruiseOnPilotSinkAfter;
     }
 
     public class TypeNotFoundException extends RuntimeException {
