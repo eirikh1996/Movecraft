@@ -300,9 +300,10 @@ public class CraftTranslateCommand extends UpdateCommand {
             Block block = location.toBukkit(craft.getWorld()).getBlock();
             if (SignUtils.isSign(block)) {
                 Sign sign = (Sign) block.getState();
-                if(!signs.containsKey(sign.getLines()))
-                    signs.put(sign.getLines(), new ArrayList<>());
-                signs.get(sign.getLines()).add(location);
+                String[] lines = sign.getLines();
+                if (!signs.containsKey(lines))
+                    signs.put(lines, new ArrayList<>());
+                signs.get(lines).add(location);
                 signStates.put(location, sign);
             }
         }
