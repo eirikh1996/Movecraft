@@ -6,10 +6,12 @@ import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.HitBox;
 import net.countercraft.movecraft.utils.TopicPaginator;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
 
@@ -37,7 +39,7 @@ public class CraftReportCommand implements CommandExecutor{
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Craft Report - None Found"));
             return true;
         }
-        TopicPaginator paginator = new TopicPaginator(I18nSupport.getInternationalisedString("Craft Report"));
+        TopicPaginator paginator = new TopicPaginator(I18nSupport.getInternationalisedString("Craft Report"), "/craftreport {PAGE}");
         for (Craft craft : CraftManager.getInstance()) {
             HitBox hitBox = craft.getHitBox();
             paginator.addLine((craft.getSinking() ? ChatColor.RED : craft.getDisabled() ? ChatColor.BLUE : "") +
@@ -45,6 +47,7 @@ public class CraftReportCommand implements CommandExecutor{
                     ChatColor.RESET +
                     (craft.getNotificationPlayer() != null ? craft.getNotificationPlayer().getName() + " " : I18nSupport.getInternationalisedString("None") +" ")+
                     hitBox.size() + " @ " +
+                    craft.getWorld().getName() + "," +
                     hitBox.getMinX() + "," +
                     hitBox.getMinY() + "," +
                     hitBox.getMinZ() + " - " +
@@ -54,8 +57,11 @@ public class CraftReportCommand implements CommandExecutor{
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Paginator - Invalid page") + "\"" + page + "\"");
             return true;
         }
-        for(String line : paginator.getPage(page))
-            commandSender.sendMessage(line);
+        for(TextComponent line : paginator.getPage(page))
+            if (commandSender instanceof Player)
+                commandSender.spigot().sendMessage(line);
+            else
+                commandSender.sendMessage(line.getText());
         return true;
 
     }

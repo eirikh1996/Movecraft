@@ -26,6 +26,7 @@ java -jar BuildTools.jar --rev 1.15.2 --compile craftbukkit
 java -jar BuildTools.jar --rev 1.16.1 --compile craftbukkit
 java -jar BuildTools.jar --rev 1.16.3 --compile craftbukkit
 java -jar BuildTools.jar --rev 1.16.5 --compile craftbukkit
+java -jar BuildTools.jar --rev 1.17 --remapped
 ```
 
 Then, run the following to build Movecraft through `maven`.

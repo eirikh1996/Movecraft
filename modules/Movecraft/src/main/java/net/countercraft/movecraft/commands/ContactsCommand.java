@@ -6,6 +6,7 @@ import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.utils.HitBox;
 import net.countercraft.movecraft.utils.TopicPaginator;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -43,7 +44,7 @@ public class ContactsCommand implements CommandExecutor {
             return true;
         }
 
-        TopicPaginator pageinator = new TopicPaginator(I18nSupport.getInternationalisedString("Contacts"));
+        TopicPaginator pageinator = new TopicPaginator(I18nSupport.getInternationalisedString("Contacts"), "/contacts {PAGE}");
         Craft ccraft = CraftManager.getInstance().getCraftByPlayer(player);
         HitBox hitBox = ccraft.getHitBox();
         MovecraftLocation center = hitBox.getMidPoint();
@@ -91,8 +92,8 @@ public class ContactsCommand implements CommandExecutor {
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Paginator - Invalid page") + "\"" + page + "\"");
             return true;
         }
-        for(String line :pageinator.getPage(page))
-            commandSender.sendMessage(line);
+        for(TextComponent line : pageinator.getPage(page))
+            commandSender.spigot().sendMessage(line);
         return true;
     }
 }

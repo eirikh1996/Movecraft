@@ -5,6 +5,7 @@ import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.craft.CraftType;
 import net.countercraft.movecraft.utils.MathUtils;
 import net.countercraft.movecraft.utils.TopicPaginator;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -81,7 +82,7 @@ public class CraftTypeCommand implements TabExecutor {
     }
 
     private void sendTypePage(@NotNull CraftType type, int page, @NotNull  CommandSender commandSender){
-        TopicPaginator paginator = new TopicPaginator("Type Info");
+        TopicPaginator paginator = new TopicPaginator("Type Info", "/crafttype " + type.getCraftName() + " {PAGE}");
         for(Field field : craftTypeFields){
             if(field.getName().equals("data")){ // don't include the backing data object
                 continue;
@@ -104,12 +105,12 @@ public class CraftTypeCommand implements TabExecutor {
             commandSender.sendMessage(String.format("Page %d is out of bounds.", page));
             return;
         }
-        for(String line : paginator.getPage(page))
-            commandSender.sendMessage(line);
+        for(TextComponent line : paginator.getPage(page))
+            commandSender.spigot().sendMessage(line);
     }
 
     private void sendTypeListPage(int page, @NotNull  CommandSender commandSender){
-        TopicPaginator paginator = new TopicPaginator("Type Info");
+        TopicPaginator paginator = new TopicPaginator("Type Info", "/crafttype list {PAGE}");
         for(CraftType entry : CraftManager.getInstance().getCraftTypes()){
             paginator.addLine(entry.getCraftName());
         }
@@ -117,8 +118,8 @@ public class CraftTypeCommand implements TabExecutor {
             commandSender.sendMessage(String.format("Page %d is out of bounds.", page));
             return;
         }
-        for(String line : paginator.getPage(page))
-            commandSender.sendMessage(line);
+        for(TextComponent line : paginator.getPage(page))
+            commandSender.spigot().sendMessage(line);
     }
 
     @NotNull

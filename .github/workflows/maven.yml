@@ -106,6 +106,12 @@ jobs:
     - name: Build 1.16.5
       if: steps.nether3.outputs.sucess != 'true'
       run: cd BuildTools && java -jar BuildTools.jar --rev 1.16.5 --compile craftbukkit
+    - name: Check 1.17
+      id: caves&cliffs
+      run: test -f ~/.m2/repository/org/bukkit/craftbukkit/1.17-R0.1-SNAPSHOT/craftbukkit-1.17-R0.1-SNAPSHOT.jar && echo "::set-output name=sucess::true" || echo "::set-output name=sucess::false"
+    - name: Build 1.17
+      if: steps.caves&cliffs.output.sucess != 'true'
+      run: cd BuildTools && java -jar BuildTools.jar --rev 1.17 --remapped
 
 # EXAMPLE - Copy/paste as required to add version support to CI
 #    - name: Test [version]

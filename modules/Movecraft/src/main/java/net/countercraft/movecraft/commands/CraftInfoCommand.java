@@ -4,7 +4,9 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.utils.MathUtils;
 import net.countercraft.movecraft.utils.TopicPaginator;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
@@ -15,7 +17,7 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Function;
 
-public class CraftInfoCommand implements TabExecutor {
+public class CraftInfoCommand implements CommandExecutor {
     private static final List<Function<Craft, ? extends Iterable<String>>> providers = new ArrayList<>();
     static {
         registerMultiProvider(CraftInfoCommand::allowedBlockProvider);
@@ -94,8 +96,12 @@ public class CraftInfoCommand implements TabExecutor {
         return true;
     }
 
-    public void craftInfo(@NotNull CommandSender commandSender, @NotNull Craft craft, int page){
-        TopicPaginator paginator = new TopicPaginator("Craft Info");
+    public void craftInfo(@NotNull CommandSender commandSender, @NotNull Craft craft, int page) {
+        craftInfo(commandSender, craft, page, "");
+    }
+
+    public void craftInfo(@NotNull CommandSender commandSender, @NotNull Craft craft, int page, String playerName) {
+        TopicPaginator paginator = new TopicPaginator("Craft Info", "/craftinfo " + playerName + " {PAGE}");
         for(Function<Craft, ? extends Iterable<String>> provider : providers){
             for(String line : provider.apply(craft)){
                 paginator.addLine(line);
@@ -105,12 +111,8 @@ public class CraftInfoCommand implements TabExecutor {
             commandSender.sendMessage(String.format("Page %d is out of bounds.", page));
             return;
         }
-        for(String line : paginator.getPage(page))
-            commandSender.sendMessage(line);
+        for(TextComponent line : paginator.getPage(page))
+            commandSender.spigot().sendMessage(line);
     }
 
-    @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return null;
-    }
 }

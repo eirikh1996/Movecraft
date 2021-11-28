@@ -128,18 +128,14 @@ public abstract class Craft {
         return world;
     }
 
+    @NotNull
     public World getWorld() {
         return world;
     }
 
     @Deprecated
     public void setW(World world) {
-        this.world = world;
-        if (type.getMaxHeightLimit(world) > world.getMaxHeight() - 1) {
-            this.maxHeightLimit = world.getMaxHeight() - 1;
-        } else {
-            this.maxHeightLimit = type.getMaxHeightLimit(world);
-        }
+        setWorld(world);
     }
 
     public abstract void detect(Player player, Player notificationPlayer, MovecraftLocation startPoint);
@@ -498,6 +494,11 @@ public abstract class Craft {
 
     public void setWorld(World world) {
         this.world = world;
+        if (type.getMaxHeightLimit(world) > world.getMaxHeight() - 1) {
+            this.maxHeightLimit = world.getMaxHeight() - 1;
+        } else {
+            this.maxHeightLimit = type.getMaxHeightLimit(world);
+        }
     }
 
     public boolean isTranslating() {
