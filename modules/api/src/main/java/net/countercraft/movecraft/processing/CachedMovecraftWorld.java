@@ -5,15 +5,16 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.support.AsyncChunk;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.WorldBorder;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class CachedMovecraftWorld implements MovecraftWorld{
 
@@ -29,6 +30,7 @@ public final class CachedMovecraftWorld implements MovecraftWorld{
 
     private final ConcurrentHashMap<ChunkLocation, AsyncChunk<?>> chunkCache = new ConcurrentHashMap<>();
     private final World world;
+    private final AtomicReference<WorldBorder> border = new AtomicReference<>();
 
     private CachedMovecraftWorld(@NotNull World world){
         this.world = world;
@@ -57,6 +59,23 @@ public final class CachedMovecraftWorld implements MovecraftWorld{
         return world.getUID();
     }
 
+    @NotNull
+    @Override
+    public String getName() {
+        return world.getName();
+    }
+
+    @NotNull
+    @Override
+    public WorldBorder getWorldBorder() {
+        WorldBorder query;
+        if((query = border.get()) != null) return query;
+        return border.updateAndGet( (b) ->{
+            if(b != null) return b;
+            return WorldManager.INSTANCE.executeMain(world::getWorldBorder);
+        });
+    }
+
     @Override
     public int hashCode() {
         return world.hashCode();
@@ -83,7 +102,11 @@ public final class CachedMovecraftWorld implements MovecraftWorld{
         if((test = chunkCache.get(chunkLocation)) != null){
             return test;
         }
-        test = WorldManager.INSTANCE.executeMain(() -> AsyncChunk.of(world.getChunkAt(location.toBukkit(world))));
+        test = WorldManager.INSTANCE.executeMain(() -> {
+            AsyncChunk<?> temp;
+            if((temp = chunkCache.get(chunkLocation)) != null) return temp;
+            return AsyncChunk.of(world.getChunkAt(location.toBukkit(world)));
+        });
         var previous = chunkCache.putIfAbsent(chunkLocation, test);
         return previous == null ? test : previous;
     }
@@ -93,7 +116,7 @@ public final class CachedMovecraftWorld implements MovecraftWorld{
         return new MovecraftLocation(location.getX() & 0x0f, location.getY(), location.getZ() & 0x0f);
     }
 
-    private static class ChunkLocation {
+    private static final class ChunkLocation {
         private final int x;
         private final int z;
         private final World world;
@@ -125,7 +148,10 @@ public final class CachedMovecraftWorld implements MovecraftWorld{
 
         @Override
         public int hashCode() {
-            return Objects.hash(x, z, world);
+            int result =  31 + x;
+            result = 31 * result + z;
+            result = 31 * result + world.hashCode();
+            return result;
         }
 
         @Override

@@ -18,6 +18,7 @@
 package net.countercraft.movecraft.craft;
 
 import net.countercraft.movecraft.Movecraft;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.events.TypesReloadedEvent;
 import net.countercraft.movecraft.exception.NonCancellableReleaseException;
@@ -36,6 +37,7 @@ import org.yaml.snakeyaml.scanner.ScannerException;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -43,25 +45,31 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Level;
 
 import static net.countercraft.movecraft.util.ChatUtils.ERROR_PREFIX;
 
 public class CraftManager implements Iterable<Craft>{
     private static CraftManager ourInstance;
-    @NotNull private final Set<Craft> craftList = ConcurrentHashMap.newKeySet();
+    @NotNull private final Set<Craft> craftList = new ConcurrentSkipListSet<>(Comparator.comparingInt(Object::hashCode));
     @NotNull private final ConcurrentMap<Player, PlayerCraft> craftPlayerIndex = new ConcurrentHashMap<>();
     @NotNull private final ConcurrentMap<Craft, BukkitTask> releaseEvents = new ConcurrentHashMap<>();
     @NotNull private Set<CraftType> craftTypes;
     @NotNull private final WeakHashMap<Player, Long> overboards = new WeakHashMap<>();
     @NotNull private final Set<Craft> sinking = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    public static void initialize(){
-        ourInstance = new CraftManager();
+    public static void initialize(boolean loadCraftTypes) {
+        ourInstance = new CraftManager(loadCraftTypes);
     }
 
-    private CraftManager() {
-        this.craftTypes = loadCraftTypes();
+    private CraftManager(boolean loadCraftTypes) {
+        if(loadCraftTypes) {
+            this.craftTypes = loadCraftTypes();
+        }
+        else {
+            this.craftTypes = new HashSet<>();
+        }
     }
 
     public static CraftManager getInstance() {
@@ -151,9 +159,9 @@ public class CraftManager implements Iterable<Craft>{
         if(!c.getHitBox().isEmpty()) {
             if (player != null) {
                 player.sendMessage(I18nSupport.getInternationalisedString("Release - Craft has been released"));
-                Movecraft.getInstance().getLogger().log(Level.INFO, String.format(I18nSupport.getInternationalisedString("Release - Player has released a craft console"), player.getName(), c.getType().getCraftName(), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
+                Movecraft.getInstance().getLogger().log(Level.INFO, String.format(I18nSupport.getInternationalisedString("Release - Player has released a craft console"), player.getName(), c.getType().getStringProperty(CraftType.NAME), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
             } else {
-                Movecraft.getInstance().getLogger().log(Level.INFO, String.format(I18nSupport.getInternationalisedString("Release - Null Craft Release Console"), c.getType().getCraftName(), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
+                Movecraft.getInstance().getLogger().log(Level.INFO, String.format(I18nSupport.getInternationalisedString("Release - Null Craft Release Console"), c.getType().getStringProperty(CraftType.NAME), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
             }
         }else{
             Movecraft.getInstance().getLogger().warning(I18nSupport.getInternationalisedString("Release - Empty Craft Release Console"));
@@ -236,7 +244,7 @@ public class CraftManager implements Iterable<Craft>{
         removeReleaseTask(c);
         Player p = getPlayerFromCraft(c);
         p.sendMessage(I18nSupport.getInternationalisedString("Release - Craft has been released message"));
-        Movecraft.getInstance().getLogger().info(String.format(I18nSupport.getInternationalisedString("Release - Player has released a craft console"), p.getName(), c.getType().getCraftName(), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
+        Movecraft.getInstance().getLogger().info(String.format(I18nSupport.getInternationalisedString("Release - Player has released a craft console"), p.getName(), c.getType().getStringProperty(CraftType.NAME), c.getHitBox().size(), c.getHitBox().getMinX(), c.getHitBox().getMinZ()));
         c.setNotificationPlayer(null);
         craftPlayerIndex.remove(p);
     }
@@ -284,7 +292,7 @@ public class CraftManager implements Iterable<Craft>{
 
     public CraftType getCraftTypeFromString(String s) {
         for (CraftType t : craftTypes) {
-            if (s.equalsIgnoreCase(t.getCraftName())) {
+            if (s.equalsIgnoreCase(t.getStringProperty(CraftType.NAME))) {
                 return t;
             }
         }

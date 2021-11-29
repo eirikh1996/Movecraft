@@ -2,6 +2,7 @@ package net.countercraft.movecraft.commands;
 
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftScuttleEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.Bukkit;
@@ -44,6 +45,10 @@ public class ScuttleCommand implements CommandExecutor {
         }
         if(craft.getSinking()){
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Scuttle - Craft Already Sinking"));
+            return true;
+        }
+        if(!commandSender.hasPermission("movecraft."+craft.getType().getStringProperty(CraftType.NAME)+".scuttle")){
+            commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return true;
         }
 

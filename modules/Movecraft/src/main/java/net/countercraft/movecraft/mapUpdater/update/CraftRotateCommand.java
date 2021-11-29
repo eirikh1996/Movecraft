@@ -10,10 +10,12 @@ import net.countercraft.movecraft.WorldHandler;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.events.SignTranslateEvent;
 import net.countercraft.movecraft.util.CollectionUtils;
 import net.countercraft.movecraft.util.MathUtils;
+import net.countercraft.movecraft.util.Tags;
 import net.countercraft.movecraft.util.hitboxes.HitBox;
 import net.countercraft.movecraft.util.hitboxes.SolidHitBox;
 import net.countercraft.movecraft.util.hitboxes.SetHitBox;
@@ -24,6 +26,7 @@ import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -66,12 +69,11 @@ public class CraftRotateCommand extends UpdateCommand {
             return;
         }
         long time = System.nanoTime();
-        final Set<Material> passthroughBlocks = new HashSet<>(craft.getType().getPassthroughBlocks());
+        final Set<Material> passthroughBlocks = new HashSet<>(craft.getType().getMaterialSetProperty(CraftType.PASSTHROUGH_BLOCKS));
         if(craft.getSinking()){
-            passthroughBlocks.add(Material.WATER);
+            passthroughBlocks.addAll(Tags.FLUID);
             passthroughBlocks.addAll(Tag.LEAVES.getValues());
-            passthroughBlocks.add(Material.TALL_GRASS);
-            passthroughBlocks.add(Material.GRASS);
+            passthroughBlocks.addAll(Tags.SINKING_PASSTHROUGH);
         }
         if (!passthroughBlocks.isEmpty()) {
             SetHitBox originalLocations = new SetHitBox();
@@ -229,7 +231,8 @@ public class CraftRotateCommand extends UpdateCommand {
             }
             for(MovecraftLocation location : entry.getValue()){
                 Block block = location.toBukkit(craft.getWorld()).getBlock();
-                BlockState state =  block.getState();
+                BlockState state = block.getState();
+                BlockData data = block.getBlockData();
                 if (!(state instanceof Sign)) {
                     continue;
                 }
@@ -238,6 +241,7 @@ public class CraftRotateCommand extends UpdateCommand {
                     sign.setLine(i, entry.getKey()[i]);
                 }
                 sign.update(false, false);
+                block.setBlockData(data);
             }
         }
     }

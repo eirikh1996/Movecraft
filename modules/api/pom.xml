@@ -28,10 +28,6 @@
     </pluginRepositories>
 
     <repositories>
-        <repository>
-            <id>sk89q-repo</id>
-            <url>http://maven.sk89q.com/repo/</url>
-        </repository>
         <repository> <!-- for development builds -->
             <id>sonatype-oss-snapshots</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
@@ -45,12 +41,13 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>1.14-R0.1-SNAPSHOT</version>
+            <version>1.14.4-R0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
-            <artifactId>annotations-java5</artifactId>
-            <version>RELEASE</version>
+            <artifactId>annotations</artifactId>
+            <version>22.0.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -73,39 +70,39 @@
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
-            <version>1.28</version>
+            <version>1.32</version>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
-            <version>1.28</version>
+            <version>1.32</version>
         </dependency>
         <dependency>
             <groupId>org.roaringbitmap</groupId>
             <artifactId>RoaringBitmap</artifactId>
-            <version>0.9.10</version>
+            <version>0.9.22</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>it.unimi.dsi</groupId>
             <artifactId>fastutil</artifactId>
-            <version>8.3.1</version>
+            <version>8.5.6</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-api</artifactId>
-            <version>4.8.1</version>
+            <version>4.9.3</version>
         </dependency>
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-platform-bukkit</artifactId>
-            <version>4.0.0-SNAPSHOT</version>
+            <version>4.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>4.7.0-SNAPSHOT</version>
+            <version>4.7.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -119,6 +116,10 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
+                    <compilerArgs>
+                        <arg>--add-exports</arg>
+                        <arg>java.base/jdk.internal.vm.annotation=ALL-UNNAMED</arg>
+                    </compilerArgs>
                     <includes>
                         <include>net/countercraft/movecraft/**</include>
                     </includes>
@@ -142,6 +143,7 @@
                 <version>2.22.0</version>
                 <configuration>
                     <trimStackTrace>false</trimStackTrace>
+                    <argLine>-XX:-RestrictContended</argLine>
                 </configuration>
                 <dependencies>
                     <dependency>

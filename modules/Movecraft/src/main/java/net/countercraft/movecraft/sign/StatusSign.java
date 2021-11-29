@@ -2,9 +2,11 @@ package net.countercraft.movecraft.sign;
 
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.craft.Craft;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftDetectEvent;
 import net.countercraft.movecraft.events.SignTranslateEvent;
 import net.countercraft.movecraft.util.Counter;
+import net.countercraft.movecraft.util.Tags;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -16,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -51,27 +54,38 @@ public final class StatusSign implements Listener{
         int fuel=0;
         int totalBlocks=0;
         Counter<Material> foundBlocks = new Counter<>();
-        for (MovecraftLocation ml : craft.getHitBox()) {
-            Material blockID = craft.getWorld().getBlockAt(ml.getX(), ml.getY(), ml.getZ()).getType();
-            foundBlocks.add(blockID);
 
-            if (blockID == Material.FURNACE) {
+        var v = craft.getType().getObjectProperty(CraftType.FUEL_TYPES);
+        if(!(v instanceof Map<?, ?>))
+            throw new IllegalStateException("FUEL_TYPES must be of type Map");
+        var fuelTypes = (Map<?, ?>) v;
+        for(var e : fuelTypes.entrySet()) {
+            if(!(e.getKey() instanceof Material))
+                throw new IllegalStateException("Keys in FUEL_TYPES must be of type Material");
+            if(!(e.getValue() instanceof Double))
+                throw new IllegalStateException("Values in FUEL_TYPES must be of type Double");
+        }
+
+        for (MovecraftLocation ml : craft.getHitBox()) {
+            Material material = craft.getWorld().getBlockAt(ml.getX(), ml.getY(), ml.getZ()).getType();
+            foundBlocks.add(material);
+
+            if(Tags.FURNACES.contains(material)) {
                 InventoryHolder inventoryHolder = (InventoryHolder) craft.getWorld().getBlockAt(ml.getX(), ml.getY(), ml.getZ()).getState();
-                Map<Material, Double> fuelTypes = craft.getType().getFuelTypes();
                 for (ItemStack iStack : inventoryHolder.getInventory()) {
-                    if (iStack == null || !fuelTypes.containsKey(iStack.getType())) {
+                    if (iStack == null || !fuelTypes.containsKey(iStack.getType()))
                         continue;
-                    }
-                    fuel += iStack.getAmount() * fuelTypes.get(iStack.getType());
+                    fuel += iStack.getAmount() * (double) fuelTypes.get(iStack.getType());
                 }
             }
-            if (blockID != Material.AIR && blockID != Material.FIRE) {
+            if(!material.isAir() && material != Material.FIRE) {
                 totalBlocks++;
             }
         }
         int signLine=1;
         int signColumn=0;
-        for(List<Material> alFlyBlockID : craft.getType().getFlyBlocks().keySet()) {
+        /*  TODO: Implement new system for flyblocks on status signs
+        for(EnumSet<Material> alFlyBlockID : craft.getType().getFlyBlocks().keySet()) {
             Material flyBlockID= alFlyBlockID.get(0);
             double minimum=craft.getType().getFlyBlocks().get(alFlyBlockID).get(0);
             if(foundBlocks.get(flyBlockID) != 0 && minimum>0) { // if it has a minimum, it should be considered for sinking consideration
@@ -113,8 +127,12 @@ public final class StatusSign implements Listener{
         if (signLine < 3 && signColumn == 1){
             signLine++;
         }
+        */
         String fuelText="";
-        int fuelRange=(int) ((fuel*(1+(craft.getType().getCruiseSkipBlocks(craft.getWorld())+1)))/craft.getType().getFuelBurnRate(craft.getWorld()));
+        int cruiseSkipBlocks = (int) craft.getType().getPerWorldProperty(CraftType.PER_WORLD_CRUISE_SKIP_BLOCKS, craft.getWorld());
+        cruiseSkipBlocks++;
+        double fuelBurnRate = (double) craft.getType().getPerWorldProperty(CraftType.PER_WORLD_FUEL_BURN_RATE, craft.getWorld());
+        int fuelRange= (int) Math.round((fuel * (1 + cruiseSkipBlocks)) / fuelBurnRate);
         if(fuelRange>1000) {
             fuelText+=ChatColor.GREEN;
         } else if(fuelRange>100) {
