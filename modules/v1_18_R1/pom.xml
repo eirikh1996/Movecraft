@@ -5,12 +5,12 @@
     <parent>
         <artifactId>movecraft-parent</artifactId>
         <groupId>net.countercraft</groupId>
-        <version>8.0.0-a.4.5</version>
+        <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>movecraft-v1_18_R1</artifactId>
+    <artifactId>movecraft-v1_18_r1</artifactId>
     <name>Movecraft-v1_18_R1</name>
     <packaging>jar</packaging>
     <dependencies>
@@ -28,10 +28,6 @@
             <type>jar</type>
         </dependency>
     </dependencies>
-    <properties>
-        <maven.compiler.source>16</maven.compiler.source>
-        <maven.compiler.target>16</maven.compiler.target>
-    </properties>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
@@ -44,8 +40,8 @@
                         <include>net/countercraft/movecraft/compat/v1_18_R1/**</include>
                         <include>net/countercraft/movecraft/support/v1_18_R1/**</include>
                     </includes>
-                    <source>16</source>
-                    <target>16</target>
+                    <source>13</source>
+                    <target>13</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -62,7 +58,7 @@
             <plugin>
                 <groupId>net.md-5</groupId>
                 <artifactId>specialsource-maven-plugin</artifactId>
-                <version>1.2.3</version>
+                <version>1.2.2</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -94,4 +90,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

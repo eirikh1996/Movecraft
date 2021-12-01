@@ -32,7 +32,7 @@ public class IAsyncChunk extends AsyncChunk<CraftChunk> {
 
     @NotNull
     @Override
-    protected CraftChunk adapt(@NotNull Chunk chunk) {
+    protected CraftChunk adapt(@NotNull org.bukkit.Chunk chunk) {
         return (CraftChunk) chunk;
     }
 
