@@ -63,4 +63,5 @@ public class Settings {
     public static boolean CheckForUpdates;
     public static boolean GearshiftsWithPilotToolEnabled;
     public static boolean IsV1_17;
+    public static boolean IsV1_18;
 }

@@ -7,9 +7,9 @@
     <version>parent</version>
     <dependencies>
         <dependency>
-            <groupId>com.destroystokyo.paper</groupId>
-            <artifactId>paper-api</artifactId>
-            <version>1.16.5-R0.1-SNAPSHOT</version>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.18-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -33,7 +33,7 @@
         <module>modules/v1_16_R2</module>
         <module>modules/v1_16_R3</module>
         <module>modules/v1_17_R1</module>
-        <!--<module>modules/v1_18_R1</module>-->
+        <module>modules/v1_18_R1</module>
         <module>modules/Movecraft</module>
 
 

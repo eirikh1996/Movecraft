@@ -28,7 +28,12 @@
     </repositories>
 
     <dependencies>
-
+        <dependency>
+            <groupId>net.countercraft</groupId>
+            <artifactId>movecraft-v1_18_R1</artifactId>
+            <version>v1_18_R1</version>
+            <type>jar</type>
+        </dependency>
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
@@ -280,6 +285,12 @@
                                 </filter>
                                 <filter>
                                     <artifact>net.countercraft:movecraft-v1_17_R1</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>net.countercraft:movecraft-v1_18_R1</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>

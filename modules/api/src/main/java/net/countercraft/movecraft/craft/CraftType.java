@@ -201,11 +201,12 @@ final public class CraftType {
         collisionExplosion = floatFromObject(data.getOrDefault("collisionExplosion", 0F));
         int minHeight = 0;
         if (Settings.IsV1_17) {
-            final Method getMinHeight;
             try {
-                getMinHeight = World.class.getDeclaredMethod("getMinHeight");
+                final Class<?> clazz = Settings.IsV1_18 ? Class.forName("org.bukkit.generator.WorldInfo") : World.class ;
+                final Method getMinHeight;
+                getMinHeight = clazz.getDeclaredMethod("getMinHeight");
                 minHeight = (int) getMinHeight.invoke(Bukkit.getWorlds().get(0));
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
         }

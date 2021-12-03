@@ -146,6 +146,12 @@
                     <include>**</include>
                   </includes>
                 </filter>
+                <filter>
+                  <artifact>net.countercraft:movecraft-v1_18_R1</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
               </filters>
               <artifactSet>
                 <includes>

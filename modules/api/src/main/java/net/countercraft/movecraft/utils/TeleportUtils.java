@@ -60,17 +60,17 @@ public class TeleportUtils {
         Class<?> worldClass = v1_17() ? getNmwClass("level.World") : getNmsClass("World");
 
         try {
-            sendMethod = connectionClass.getMethod("sendPacket", packet);
+            sendMethod = connectionClass.getMethod(v1_18() ? "a" : "sendPacket", packet);
 
-            position = entity.getDeclaredMethod("setLocation", Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE);
-            closeInventory = entityPlayer.getDeclaredMethod("closeInventory");
+            position = entity.getDeclaredMethod(v1_18() ? "a" : "setLocation", Double.TYPE, Double.TYPE, Double.TYPE, Float.TYPE, Float.TYPE);
+            closeInventory = entityPlayer.getDeclaredMethod(v1_18() ? "q" : "closeInventory");
             getBukkitEntity = entity.getDeclaredMethod("getBukkitEntity");
             if (!v1_17())
                 spawnIn = entity.getDeclaredMethod("spawnIn", worldClass);
             else
                 t = entity.getDeclaredField("t");
-            yaw = getField(entity, v1_17() ? "ay" : "yaw");
-            pitch = getField(entity,  v1_17() ? "az" : "pitch");
+            yaw = getField(entity, v1_17() ? (v1_18() ? "aA" : "ay") : "yaw");
+            pitch = getField(entity,  v1_17() ? (v1_18() ? "aB" : "az") : "pitch");
             connectionField = getField(entityPlayer, v1_17() ? "b" : "playerConnection");
             activeContainer = getField(entityHuman, v1_17() ? "bU" : "activeContainer");
             defaultContainer = getField(entityHuman, v1_17() ? "bV" : "defaultContainer");
@@ -112,7 +112,8 @@ public class TeleportUtils {
         try {
             if (location.getWorld() != entity.getWorld()) {
                 Method wHandle = location.getWorld().getClass().getDeclaredMethod("getHandle");
-                spawnIn.invoke(handle, wHandle.invoke(location.getWorld()));
+                if (!v1_17())
+                    spawnIn.invoke(handle, wHandle.invoke(location.getWorld()));
             }
             position.invoke(handle, x,y,z, location.getYaw(), location.getPitch());
         } catch (Exception e) {
@@ -192,6 +193,10 @@ public class TeleportUtils {
     }
     private static boolean v1_17() {
         return Integer.parseInt(getVersion().split("_")[1]) >= 17;
+    }
+
+    private static boolean v1_18() {
+        return Integer.parseInt(getVersion().split("_")[1]) >= 18;
     }
 
     private static Class<?> getNmsClass(String name) {
