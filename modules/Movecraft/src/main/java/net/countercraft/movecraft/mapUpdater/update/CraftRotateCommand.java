@@ -19,6 +19,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
@@ -290,15 +291,20 @@ public class CraftRotateCommand extends UpdateCommand {
                 continue;
             }
             for(MovecraftLocation location : entry.getValue()){
-                Block block = location.toBukkit(craft.getW()).getBlock();
+                Block block = location.toBukkit(craft.getWorld()).getBlock();
                 if (!SignUtils.isSign(block)) {
                     continue;
                 }
+                Object blockData = null;
+                if (!Settings.IsLegacy)
+                    blockData = block.getBlockData();
                 Sign sign = signStates.get(location);
                 for(int i = 0; i<4; i++){
                     sign.setLine(i, entry.getKey()[i]);
                 }
                 sign.update(false, false);
+                if (blockData != null)
+                    block.setBlockData((BlockData) blockData);
             }
         }
     }
