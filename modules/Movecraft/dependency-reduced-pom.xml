@@ -4,7 +4,7 @@
   <groupId>net.countercraft</groupId>
   <artifactId>movecraft</artifactId>
   <name>Movecraft</name>
-  <version>7.0.0.3_for_1.8.8-1.17</version>
+  <version>7.0.0.4_for_1.8.8-1.18</version>
   <url>http://github.com/apdevteam/Movecraft</url>
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>
