@@ -154,7 +154,7 @@ public class IWorldHandler extends WorldHandler {
             final BlockPos position = entry.getKey();
             final BlockState data = entry.getValue();
             LevelChunk chunk = nativeWorld.getChunkAt(position);
-            LevelChunkSection chunkSection = chunk.getSections()[position.getY()>>4];
+            LevelChunkSection chunkSection = chunk.getSections()[chunk.getSectionIndex(position.getY())];
             if (chunkSection == null) {
                 // Put a GLASS block to initialize the section. It will be replaced next with the real block.
                 chunk.setBlockState(position, Blocks.GLASS.defaultBlockState(), false);
@@ -301,7 +301,7 @@ public class IWorldHandler extends WorldHandler {
             final BlockPos position = entry.getKey();
             final BlockState data = entry.getValue();
             LevelChunk chunk = world.getChunkAt(position);
-            LevelChunkSection chunkSection = chunk.getSections()[position.getY()>>4];
+            LevelChunkSection chunkSection = chunk.getSections()[chunk.getSectionIndex(position.getY())];
             if (chunkSection == null) {
                 // Put a GLASS block to initialize the section. It will be replaced next with the real block.
                 chunk.setBlockState(position, Blocks.GLASS.defaultBlockState(), false);
