@@ -250,7 +250,7 @@ public class Movecraft extends JavaPlugin {
         String packageName = this.getServer().getClass().getPackage().getName();
         String version = packageName.substring(packageName.lastIndexOf('.') + 1);
         String[] parts = version.split("_");
-        int versionNumber = Integer.valueOf(parts[1]);
+        int versionNumber = Integer.parseInt(parts[1]);
         //Check if the server is 1.12 and lower or 1.13 and higher
         Settings.IsPre1_9 = versionNumber < 9;
         Settings.IsLegacy = versionNumber <= 12;

@@ -200,29 +200,34 @@ final public class CraftType {
         explodeOnCrash = floatFromObject(data.getOrDefault("explodeOnCrash", 0F));
         collisionExplosion = floatFromObject(data.getOrDefault("collisionExplosion", 0F));
         int minHeight = 0;
+        Method getMinHeight = null;
+
         if (Settings.IsV1_17) {
+            Class<?> clazz;
             try {
-                final Class<?> clazz = Settings.IsV1_18 ? Class.forName("org.bukkit.generator.WorldInfo") : World.class ;
-                final Method getMinHeight;
+                clazz = Class.forName("org.bukkit.generator.WorldInfo");
+            } catch (ClassNotFoundException e) {
+                clazz = World.class;
+            }
+            try {
                 getMinHeight = clazz.getDeclaredMethod("getMinHeight");
                 minHeight = (int) getMinHeight.invoke(Bukkit.getWorlds().get(0));
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
         }
         minHeightLimit = max(minHeight, integerFromObject(data.getOrDefault("minHeightLimit", 0)));
         perWorldMinHeightLimit = new HashMap<>();
         Map<String, Integer> minHeightMap = stringToIntMapFromObject(data.getOrDefault("perWorldMinHeightLimit", new HashMap<>()));
+        Method finalGetMinHeight = getMinHeight;
         minHeightMap.forEach((world, height) -> {
             int worldMinHeight = 0;
             if (Settings.IsV1_17) {
-                final Method getMinHeight;
                 final World foundWorld = Bukkit.getWorld(world);
                 if (world != null) {
                     try {
-                        getMinHeight = World.class.getDeclaredMethod("getMinHeight");
-                        worldMinHeight = (int) getMinHeight.invoke(foundWorld);
-                    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                        worldMinHeight = (int) finalGetMinHeight.invoke(foundWorld);
+                    } catch (IllegalAccessException | InvocationTargetException e) {
 
                     }
                 }
