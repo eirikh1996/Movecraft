@@ -10,7 +10,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <!--<version>7.0.0</version>-->
-    <version>7.0.0.4_for_1.8.8-1.18</version>
+    <version>7.0.0.6_for_1.8.8-1.19</version>
 
     <repositories>
         <repository>
@@ -28,6 +28,12 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>net.countercraft</groupId>
+            <artifactId>movecraft-v1_19_R1</artifactId>
+            <version>v1_19_R1</version>
+            <type>jar</type>
+        </dependency>
         <dependency>
             <groupId>net.countercraft</groupId>
             <artifactId>movecraft-v1_18_R2</artifactId>
@@ -303,6 +309,12 @@
                                 </filter>
                                 <filter>
                                     <artifact>net.countercraft:movecraft-v1_18_R2</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>net.countercraft:movecraft-v1_19_R1</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>

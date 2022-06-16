@@ -4,7 +4,7 @@
   <groupId>net.countercraft</groupId>
   <artifactId>movecraft</artifactId>
   <name>Movecraft</name>
-  <version>7.0.0.4_for_1.8.8-1.18</version>
+  <version>7.0.0.5_for_1.8.8-1.19</version>
   <url>http://github.com/apdevteam/Movecraft</url>
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>
@@ -148,6 +148,18 @@
                 </filter>
                 <filter>
                   <artifact>net.countercraft:movecraft-v1_18_R1</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>net.countercraft:movecraft-v1_18_R2</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>net.countercraft:movecraft-v1_19_R1</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
