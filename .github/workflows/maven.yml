@@ -117,6 +117,11 @@ jobs:
     - name: Build 1.17
       if: steps.cavesandcliffs.output.sucess != 'true'
       run: cd BuildTools && java -jar BuildTools.jar --rev 1.17 --remapped
+      #Use Java 17 for 1.18 and above
+    - name: Set up JDK 17
+      uses: actions/setup-java@v1
+      with:
+        java-version: 17
     - name: Check 1.18
       id: cavesandcliffs2
       run: test -f ~/.m2/repository/org/bukkit/craftbukkit/1.18-R0.1-SNAPSHOT/craftbukkit-1.18-R0.1-SNAPSHOT.jar && echo "::set-output name=sucess::true" || echo "::set-output name=sucess::false"
