@@ -85,13 +85,13 @@ public class TeleportUtils {
             teleportFlags = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(enumObjects[4], enumObjects[3])));
 
             justTeleportedField = getField(connectionClass, "justTeleported");
-            teleportPosField = getField(connectionClass, v1_17() ? "y" : "teleportPos");
+            teleportPosField = getField(connectionClass, v1_17() ? (v1_19() ? (v1_19_1() ? "C" : "B") : "y") : "teleportPos");
             lastPosXField = getField(connectionClass, "lastPosX");
             lastPosYField = getField(connectionClass, "lastPosY");
             lastPosZField = getField(connectionClass, "lastPosZ");
-            teleportAwaitField = getField(connectionClass, v1_17() ? "z" : "teleportAwait");
-            AField = getField(connectionClass, "A");
-            eField = getField(connectionClass, v1_17() ? "f" : "e");
+            teleportAwaitField = getField(connectionClass, v1_17() ? (v1_19() ? (v1_19_1() ? "D" : "C") : "z") : "teleportAwait");
+            AField = getField(connectionClass, v1_19() ? (v1_19_1() ? "E" : "D") : "A");
+            eField = getField(connectionClass, v1_17() ? (v1_19_1() ? "i" : "h") : "e");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -197,6 +197,16 @@ public class TeleportUtils {
 
     private static boolean v1_18() {
         return Integer.parseInt(getVersion().split("_")[1]) >= 18;
+    }
+
+    private static boolean v1_19()  {
+        return Integer.parseInt(getVersion().split("_")[1]) >= 19;
+    }
+
+    private static boolean v1_19_1() {
+        final String version = Bukkit.getVersion().replace("(MC: ", "").replace(")" , "");
+        int versionNumber = Integer.parseInt(version.split("\\.")[2]);
+        return v1_19() && versionNumber >= 1;
     }
 
     private static Class<?> getNmsClass(String name) {
