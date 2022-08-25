@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
 
 public class MovecraftCommand implements TabExecutor {
     @Override
@@ -32,7 +32,7 @@ public class MovecraftCommand implements TabExecutor {
         }
 
         if(args.length==1 && args[0].equalsIgnoreCase("reloadtypes") && commandSender.hasPermission("movecraft.commands.movecraft.reloadtypes")){
-            CraftManager.getInstance().initCraftTypes();
+            CraftManager.getInstance().reloadCraftTypes();
             commandSender.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Movecraft - Reloaded Types"));
             return true;
         }

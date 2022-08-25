@@ -21,9 +21,12 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.PlayerCraft;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.utils.MathUtils;
+import net.countercraft.movecraft.util.MathUtils;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -33,17 +36,21 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 public class PlayerListener implements Listener {
     private final Map<Craft, Long> timeToReleaseAfter = new WeakHashMap<>();
 
-    private String checkCraftBorders(Craft craft) {
-        String ret = "";
-        final int[] ALLOWED_BLOCKS = craft.getType().getAllowedBlocks();
-        final int[] FORBIDDEN_BLOCKS = craft.getType().getForbiddenBlocks();
+    private Set<Location> checkCraftBorders(Craft craft) {
+        Set<Location> mergePoints = new HashSet<>();
+        final EnumSet<Material> ALLOWED_BLOCKS = craft.getType().getMaterialSetProperty(CraftType.ALLOWED_BLOCKS);
+        final EnumSet<Material> FORBIDDEN_BLOCKS = craft.getType().getMaterialSetProperty(CraftType.FORBIDDEN_BLOCKS);
         final MovecraftLocation[] SHIFTS = {
                 //x
                 new MovecraftLocation(-1, 0, 0),
@@ -71,41 +78,41 @@ public class PlayerListener implements Listener {
                 if (craft.getHitBox().contains(test)){
                     continue;
                 }
-                Block testBlock = test.toBukkit(craft.getW()).getBlock();
-                int typeID = testBlock.getTypeId();
-                int metaData = testBlock.getData();
-                int shiftedID = 10000 + (typeID << 4) + metaData;
+                Block testBlock = test.toBukkit(craft.getWorld()).getBlock();
+                Material testMaterial = testBlock.getType();
                 //Break the loop if an allowed block is found adjacent to the craft's hitbox
-                if (Arrays.binarySearch(ALLOWED_BLOCKS, typeID) >= 0 || Arrays.binarySearch(ALLOWED_BLOCKS, shiftedID) >= 0){
-                    ret = "@ " + test.toString() + " " + Material.getMaterial(typeID).name();
-                    break;
+                if (ALLOWED_BLOCKS.contains(testMaterial)){
+                    mergePoints.add(testBlock.getLocation());
                 }
                 //Do the same if a forbidden block is found
-                else if (Arrays.binarySearch(FORBIDDEN_BLOCKS, typeID) >= 0 || Arrays.binarySearch(FORBIDDEN_BLOCKS, shiftedID) >= 0){
-                    ret = "@ " + test.toString() + " " + Material.getMaterial(typeID).name();
-                    break;
+                else if (FORBIDDEN_BLOCKS.contains(testMaterial)){
+                    mergePoints.add(testBlock.getLocation());
                 }
-            }
-            //When a block that can merge is found, break this loop
-            if (ret.length() > 0){
-                break;
             }
         }
         //Return the string representation of the merging point and alert the pilot
-        return ret;
+        return mergePoints;
     }
 
     @EventHandler
-    public void onPLayerLogout(PlayerQuitEvent e) {
-        CraftManager.getInstance().removeCraftByPlayer(e.getPlayer());
+    public void onPlayerLogout(PlayerQuitEvent e) {
+        Craft craft = CraftManager.getInstance().getCraftByPlayer(e.getPlayer());
+        if (craft != null)
+            CraftManager.getInstance().release(craft, CraftReleaseEvent.Reason.DISCONNECT, false);
     }
 
     @EventHandler
-    public void onPlayerDeath(EntityDamageByEntityEvent e) {  // changed to death so when you shoot up an airship and hit the pilot, it still sinks
-        if (e instanceof Player) {
-            Player p = (Player) e;
-            CraftManager.getInstance().removeCraft(CraftManager.getInstance().getCraftByPlayer(p), CraftReleaseEvent.Reason.DEATH);
-        }
+    public void onPlayerDeath(EntityDamageByEntityEvent e) {
+        // changed to death so when you shoot up an airship and hit the pilot, it still sinks
+        if (!(e instanceof Player))
+            return;
+
+        Player p = (Player) e;
+        Craft craft = CraftManager.getInstance().getCraftByPlayer(p);
+        if (craft == null)
+            return;
+
+        CraftManager.getInstance().release(craft, CraftReleaseEvent.Reason.DEATH, false);
     }
 
     @EventHandler
@@ -123,23 +130,24 @@ public class PlayerListener implements Listener {
         }
 
         if(timeToReleaseAfter.containsKey(c) && timeToReleaseAfter.get(c) < System.currentTimeMillis()){
-            CraftManager.getInstance().removeCraft(c, CraftReleaseEvent.Reason.PLAYER);
+            CraftManager.getInstance().release(c, CraftReleaseEvent.Reason.PLAYER, false);
             timeToReleaseAfter.remove(c);
             return;
         }
 
-        if (c.isNotProcessing() && c.getType().getMoveEntities() && !timeToReleaseAfter.containsKey(c)) {
+        if (c.isNotProcessing() && c.getType().getBoolProperty(CraftType.MOVE_ENTITIES)
+                && !timeToReleaseAfter.containsKey(c)) {
             if (Settings.ManOverboardTimeout != 0) {
-                p.sendMessage(I18nSupport.getInternationalisedString("Manoverboard - Player has left craft"));
-                String mergePoint = checkCraftBorders(c);
-                if (mergePoint.length() > 0){
-                    p.sendMessage(I18nSupport.getInternationalisedString("Manoverboard - Craft May Merge") + " " + mergePoint);
-                }
+                c.getAudience().sendActionBar(I18nSupport.getInternationalisedComponent("Manoverboard - Player has left craft"));
                 CraftManager.getInstance().addOverboard(p);
-            } else {
+            }
+            else {
                 p.sendMessage(I18nSupport.getInternationalisedString("Release - Player has left craft"));
             }
-            timeToReleaseAfter.put(c, System.currentTimeMillis() + 30000); //30 seconds to release TODO: config
+            var mergePoints = checkCraftBorders(c);
+            if (!mergePoints.isEmpty())
+                p.sendMessage(I18nSupport.getInternationalisedString("Manoverboard - Craft May Merge"));
+            timeToReleaseAfter.put(c, System.currentTimeMillis() + c.getType().getIntProperty(CraftType.RELEASE_TIMEOUT) * 1000L);
         }
     }
 }

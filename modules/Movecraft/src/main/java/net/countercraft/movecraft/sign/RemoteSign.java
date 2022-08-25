@@ -1,24 +1,29 @@
 package net.countercraft.movecraft.sign;
 
-import net.countercraft.movecraft.utils.MathUtils;
 import net.countercraft.movecraft.MovecraftLocation;
+import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.PlayerCraft;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.config.Settings;
+import net.countercraft.movecraft.util.MathUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.LinkedList;
 
-import static net.countercraft.movecraft.utils.ChatUtils.ERROR_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.ERROR_PREFIX;
 
 public final class RemoteSign implements Listener{
     private static final String HEADER = "Remote Sign";
@@ -37,29 +42,26 @@ public final class RemoteSign implements Listener{
         }
     }
 
-    @EventHandler
-    public final void onSignClick(PlayerInteractEvent event) {
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onSignClick(@NotNull PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_BLOCK) {
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         if (!ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase(HEADER)) {
             return;
         }
         Craft foundCraft = null;
-        CraftManager.getInstance().getCraftsInWorld(event.getClickedBlock().getWorld());
-        for (Craft tcraft : CraftManager.getInstance().getCraftsInWorld(event.getClickedBlock().getWorld())) {
+        for (PlayerCraft tcraft : CraftManager.getInstance().getPlayerCraftsInWorld(event.getClickedBlock().getWorld())) {
             if (MathUtils.locationInHitBox(tcraft.getHitBox(), event.getClickedBlock().getLocation())) {
                 // don't use a craft with a null player. This is
                 // mostly to avoid trying to use subcrafts
-                if (CraftManager.getInstance().getPlayerFromCraft(tcraft) != null) {
-                    foundCraft = tcraft;
-                    break;
-                }
+                foundCraft = tcraft;
+                break;
             }
         }
 
@@ -68,7 +70,7 @@ public final class RemoteSign implements Listener{
             return;
         }
 
-        if (!foundCraft.getType().allowRemoteSign()) {
+        if (!foundCraft.getType().getBoolProperty(CraftType.ALLOW_REMOTE_SIGN)) {
             event.getPlayer().sendMessage(ERROR_PREFIX + I18nSupport.getInternationalisedString("Remote Sign - Not allowed on this craft"));
             return;
         }
@@ -87,11 +89,11 @@ public final class RemoteSign implements Listener{
         LinkedList<MovecraftLocation> foundLocations = new LinkedList<MovecraftLocation>();
         boolean firstError = true;
         for (MovecraftLocation tloc : foundCraft.getHitBox()) {
-            Block tb = event.getClickedBlock().getWorld().getBlockAt(tloc.getX(), tloc.getY(), tloc.getZ());
-            if (!tb.getType().equals(Material.SIGN_POST) && !tb.getType().equals(Material.WALL_SIGN)) {
+            BlockState tstate = event.getClickedBlock().getWorld().getBlockAt(tloc.getX(), tloc.getY(), tloc.getZ()).getState();
+            if (!(tstate instanceof Sign)) {
                 continue;
             }
-            Sign ts = (Sign) tb.getState();
+            Sign ts = (Sign) tstate;
 
             if (isEqualSign(ts, targetText)) {
                 if (isForbidden(ts)) {

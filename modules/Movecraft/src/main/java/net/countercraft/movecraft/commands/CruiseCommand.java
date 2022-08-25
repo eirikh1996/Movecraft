@@ -3,6 +3,7 @@ package net.countercraft.movecraft.commands;
 import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -13,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static net.countercraft.movecraft.utils.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
+import static net.countercraft.movecraft.util.ChatUtils.MOVECRAFT_COMMAND_PREFIX;
 
 public class CruiseCommand implements TabExecutor {
     @Override
@@ -79,11 +80,11 @@ public class CruiseCommand implements TabExecutor {
             return true;
         }
 
-        if (!player.hasPermission("movecraft." + craft.getType().getCraftName() + ".move")) {
+        if (!player.hasPermission("movecraft." + craft.getType().getStringProperty(CraftType.NAME) + ".move")) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return true;
         }
-        if (!craft.getType().getCanCruise()) {
+        if (!craft.getType().getBoolProperty(CraftType.CAN_CRUISE)) {
             player.sendMessage(MOVECRAFT_COMMAND_PREFIX + I18nSupport.getInternationalisedString("Cruise - Craft Cannot Cruise"));
             return true;
         }
@@ -126,10 +127,20 @@ public class CruiseCommand implements TabExecutor {
             craft.setCruising(true);
             return true;
         }
+        if (args[0].equalsIgnoreCase("up") || args[0].equalsIgnoreCase("u")) {
+            craft.setCruiseDirection(CruiseDirection.UP);
+            craft.setCruising(true);
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("down") || args[0].equalsIgnoreCase("d")) {
+            craft.setCruiseDirection(CruiseDirection.DOWN);
+            craft.setCruising(true);
+            return true;
+        }
         return false;
     }
 
-    private final String[] completions = {"North", "East", "South", "West", "On", "Off"};
+    private final String[] completions = {"North", "East", "South", "West", "Up", "Down", "On", "Off"};
     @Override
     public List<String> onTabComplete(CommandSender commandSender, Command command, String s, String[] strings) {
         if(strings.length !=1)

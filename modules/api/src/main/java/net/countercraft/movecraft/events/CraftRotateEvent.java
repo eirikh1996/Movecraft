@@ -1,9 +1,9 @@
 package net.countercraft.movecraft.events;
 
 import net.countercraft.movecraft.MovecraftLocation;
-import net.countercraft.movecraft.Rotation;
+import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.utils.HitBox;
+import net.countercraft.movecraft.util.hitboxes.HitBox;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
@@ -19,13 +19,13 @@ public class CraftRotateEvent extends CraftEvent implements Cancellable {
     @NotNull private final HitBox newHitBox;
     @NotNull private String failMessage = "";
     @NotNull private final MovecraftLocation originPoint;
-    @NotNull private final Rotation rotation;
+    @NotNull private final MovecraftRotation rotation;
     private boolean isCancelled = false;
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    public CraftRotateEvent(@NotNull Craft craft, @NotNull Rotation rotation, @NotNull MovecraftLocation originPoint, @NotNull HitBox oldHitBox, @NotNull HitBox newHitBox) {
-        super(craft, true);
+    public CraftRotateEvent(@NotNull Craft craft, @NotNull MovecraftRotation rotation, @NotNull MovecraftLocation originPoint, @NotNull HitBox oldHitBox, @NotNull HitBox newHitBox) {
+        super(craft);
         this.rotation = rotation;
         this.originPoint = originPoint;
         this.oldHitBox = oldHitBox;
@@ -33,7 +33,7 @@ public class CraftRotateEvent extends CraftEvent implements Cancellable {
     }
 
     @NotNull
-    public Rotation getRotation() {
+    public MovecraftRotation getRotation() {
         return rotation;
     }
 

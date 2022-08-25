@@ -30,18 +30,16 @@ public class ExplosionUpdateCommand extends UpdateCommand {
 
     @Override
     public void doUpdate() {
-        //if (explosionStrength > 0) { // don't bother with tiny explosions
-        //Location loc = new Lo cation(explosionLocation.getWorld(), explosionLocation.getX() + 0.5, explosionLocation.getY() + 0.5, explosionLocation.getZ());
         ExplosionEvent e = new ExplosionEvent(explosionLocation, explosionStrength);
         Bukkit.getServer().getPluginManager().callEvent(e);
         if(e.isCancelled())
             return;
+
         if (Settings.Debug) {
             Bukkit.broadcastMessage("Explosion strength: " + explosionStrength + " at " + explosionLocation.toVector().toString());
         }
-        this.createExplosion(explosionLocation.add(.5,.5,.5), explosionStrength);
-        //}
 
+        this.createExplosion(explosionLocation.add(.5,.5,.5), explosionStrength);
     }
 
     private void createExplosion(Location loc, float explosionPower) {

@@ -19,6 +19,7 @@ package net.countercraft.movecraft.config;
 
 import org.bukkit.Material;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,7 +31,7 @@ public class Settings {
     public static int THREAD_POOL_SIZE = 5;
     public static List<Integer> DATA_BLOCKS;
     public static String LOCALE;
-    public static int PilotTool = 280;
+    public static Material PilotTool = Material.STICK;
     public static int SilhouetteViewDistance = 200;
     public static int SilhouetteBlockCount = 20;
     public static boolean CompatibilityMode = false;
@@ -51,8 +52,7 @@ public class Settings {
     public static int CollisionPrimer = 1000;
     public static int MaxRemoteSigns = -1;
     public static boolean CraftsUseNetherPortals = false;
-    public static boolean IsPaper = false;
 
-    public static HashSet<Integer> DisableShadowBlocks;
+    public static EnumSet<Material> DisableShadowBlocks;
     public static HashSet<String> ForbiddenRemoteSigns;
 }

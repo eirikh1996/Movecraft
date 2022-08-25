@@ -17,16 +17,20 @@
 
 package net.countercraft.movecraft;
 
+import com.google.common.primitives.UnsignedInteger;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.jetbrains.annotations.NotNull;
 
-import static net.countercraft.movecraft.utils.BitMath.*;
+import static net.countercraft.movecraft.util.BitMath.mask;
+import static net.countercraft.movecraft.util.BitMath.unpackX;
+import static net.countercraft.movecraft.util.BitMath.unpackY;
+import static net.countercraft.movecraft.util.BitMath.unpackZ;
 
 /**
  * Represents a Block aligned coordinate triplet.
  */
-final public class MovecraftLocation {
+final public class MovecraftLocation implements Comparable<MovecraftLocation>{
     private final int x, y, z;
 
     public MovecraftLocation(int x, int y, int z) {
@@ -72,7 +76,7 @@ final public class MovecraftLocation {
 
     @Override
     public int hashCode() {
-        return (x ^ (z << 12)) ^ (y << 24);
+        return 131 * 131 * x + 131 * z + y;
     }
 
     public MovecraftLocation add(MovecraftLocation l) {
@@ -134,6 +138,20 @@ final public class MovecraftLocation {
 
     @NotNull
     public static MovecraftLocation unpack(long l){
-        return new MovecraftLocation(unpackX(l), unpackY(l), unpackZ(l));
+        return new MovecraftLocation((int) (l << 38 >> 38),(int) (l >> 52),(int) (l << 12 >> 38));
+    }
+
+    @Override
+    public int compareTo(@NotNull MovecraftLocation other) {
+        if(this.x != other.x){
+            return this.x - other.x;
+        }
+        if(this.y != other.y){
+            return this.y - other.y ;
+        }
+        if(this.z != other.z){
+            return this.z - other.z ;
+        }
+        return 0;
     }
 }

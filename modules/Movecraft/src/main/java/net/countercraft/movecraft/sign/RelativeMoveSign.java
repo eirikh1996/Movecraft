@@ -1,26 +1,28 @@
 package net.countercraft.movecraft.sign;
 
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.jetbrains.annotations.NotNull;
 
 public final class RelativeMoveSign implements Listener{
     private static final String HEADER = "RMove:";
 
-    @EventHandler
-    public final void onSignClick(PlayerInteractEvent event) {
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onSignClick(@NotNull PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        if (!(block.getState() instanceof Sign)) {
             return;
         }
         Sign sign = (Sign) event.getClickedBlock().getState();
@@ -57,7 +59,7 @@ public final class RelativeMoveSign implements Listener{
         // positive
         // =
         // forwards
-        int maxMove = CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().maxStaticMove();
+        int maxMove = CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().getIntProperty(CraftType.MAX_STATIC_MOVE);
 
         if (dLeftRight > maxMove)
             dLeftRight = maxMove;
@@ -96,12 +98,12 @@ public final class RelativeMoveSign implements Listener{
                 break;
         }
 
-        if (!event.getPlayer().hasPermission("movecraft." + CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().getCraftName() + ".move")) {
+        if (!event.getPlayer().hasPermission("movecraft." + CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().getStringProperty(CraftType.NAME) + ".move")) {
             event.getPlayer().sendMessage(
                     I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return;
         }
-        if (CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().getCanStaticMove()) {
+        if (CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).getType().getBoolProperty(CraftType.CAN_STATIC_MOVE)) {
             CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).translate(dx, dy, dz);
             //timeMap.put(event.getPlayer(), System.currentTimeMillis());
             CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).setLastCruiseUpdate(System.currentTimeMillis());

@@ -4,27 +4,28 @@ import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.events.CraftReleaseEvent;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.jetbrains.annotations.NotNull;
 
 public final class ReleaseSign implements Listener{
     private static final String HEADER = "Release";
 
-    @EventHandler
-    public final void onSignClick(PlayerInteractEvent event) {
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onSignClick(@NotNull PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         if (!ChatColor.stripColor(sign.getLine(0)).equalsIgnoreCase(HEADER)) {
             return;
         }
@@ -32,6 +33,6 @@ public final class ReleaseSign implements Listener{
         if (craft == null) {
             return;
         }
-        CraftManager.getInstance().removeCraft(craft, CraftReleaseEvent.Reason.PLAYER);
+        CraftManager.getInstance().release(craft, CraftReleaseEvent.Reason.PLAYER, false);
     }
 }

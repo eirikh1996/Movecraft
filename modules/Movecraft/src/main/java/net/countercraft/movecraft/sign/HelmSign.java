@@ -1,24 +1,26 @@
 package net.countercraft.movecraft.sign;
 
-import net.countercraft.movecraft.Rotation;
+import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.craft.Craft;
-import net.countercraft.movecraft.utils.MathUtils;
 import net.countercraft.movecraft.craft.CraftManager;
+import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.util.MathUtils;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.jetbrains.annotations.NotNull;
 
 public final class HelmSign implements Listener {
 
     @EventHandler
-    public final void onSignChange(SignChangeEvent event){
+    public void onSignChange(SignChangeEvent event){
         if (!ChatColor.stripColor(event.getLine(0)).equalsIgnoreCase("[helm]")) {
             return;
         }
@@ -27,21 +29,21 @@ public final class HelmSign implements Listener {
         event.setLine(2, "/  ||  \\");
     }
 
-    @EventHandler
-    public final void onSignClick(PlayerInteractEvent event) {
-        Rotation rotation;
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onSignClick(@NotNull PlayerInteractEvent event) {
+        MovecraftRotation rotation;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            rotation = Rotation.CLOCKWISE;
+            rotation = MovecraftRotation.CLOCKWISE;
         }else if(event.getAction() == Action.LEFT_CLICK_BLOCK){
-            rotation = Rotation.ANTICLOCKWISE;
+            rotation = MovecraftRotation.ANTICLOCKWISE;
         }else{
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block.getType() != Material.SIGN_POST && block.getType() != Material.WALL_SIGN) {
+        BlockState state = event.getClickedBlock().getState();
+        if (!(state instanceof Sign)) {
             return;
         }
-        Sign sign = (Sign) event.getClickedBlock().getState();
+        Sign sign = (Sign) state;
         if (!(ChatColor.stripColor(sign.getLine(0)).equals("\\  ||  /") &&
                 ChatColor.stripColor(sign.getLine(1)).equals("==      ==") &&
                 ChatColor.stripColor(sign.getLine(2)).equals("/  ||  \\"))) {
@@ -51,7 +53,7 @@ public final class HelmSign implements Listener {
         if (craft == null) {
             return;
         }
-        if (!event.getPlayer().hasPermission("movecraft." + craft.getType().getCraftName() + ".rotate")) {
+        if (!event.getPlayer().hasPermission("movecraft." + craft.getType().getStringProperty(CraftType.NAME) + ".rotate")) {
             event.getPlayer().sendMessage(I18nSupport.getInternationalisedString("Insufficient Permissions"));
             return;
         }
@@ -74,7 +76,7 @@ public final class HelmSign implements Listener {
         if(!MathUtils.locIsNearCraftFast(craft, MathUtils.bukkit2MovecraftLoc(event.getPlayer().getLocation())))
             return;
 
-        if (craft.getType().rotateAtMidpoint()) {
+        if (craft.getType().getBoolProperty(CraftType.ROTATE_AT_MIDPOINT)) {
             CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).rotate(rotation, craft.getHitBox().getMidPoint());
         } else {
             CraftManager.getInstance().getCraftByPlayer(event.getPlayer()).rotate(rotation, MathUtils.bukkit2MovecraftLoc(sign.getLocation()));
