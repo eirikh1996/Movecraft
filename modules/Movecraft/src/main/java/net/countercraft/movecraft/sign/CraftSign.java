@@ -40,7 +40,7 @@ import java.util.Set;
 public final class CraftSign implements Listener {
     private final Set<MovecraftLocation> piloting = new HashSet<>();
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.NORMAL)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onSignChange(@NotNull SignChangeEvent event) {
         if (CraftManager.getInstance().getCraftTypeFromString(event.getLine(0)) == null)
             return;
@@ -54,7 +54,7 @@ public final class CraftSign implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onSignClick(@NotNull PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null)
             return;
@@ -88,6 +88,7 @@ public final class CraftSign implements Listener {
         CraftManager.getInstance().detect(
                 startPoint,
                 craftType, (type, w, p, parents) -> {
+                    assert p != null; // Note: This only passes in a non-null player.
                     if (type.getBoolProperty(CraftType.CRUISE_ON_PILOT)) {
                         if (parents.size() > 1)
                             return new Pair<>(Result.failWithMessage(I18nSupport.getInternationalisedString(
@@ -110,7 +111,8 @@ public final class CraftSign implements Listener {
                                 new PlayerCraftImpl(type, w, p));
                     }
                 },
-                world, player,
+                world,
+                player,
                 Movecraft.getAdventure().player(player),
                 craft -> () -> {
                     Bukkit.getServer().getPluginManager().callEvent(new CraftPilotEvent(craft, CraftPilotEvent.Reason.PLAYER));
@@ -137,7 +139,7 @@ public final class CraftSign implements Listener {
                             @Override
                             public void run() {
                                 craft.setCruising(false);
-                                craft.sink();
+                                CraftManager.getInstance().sink(craft);
                             }
                         }.runTaskLater(Movecraft.getInstance(), (20 * 15));
                     }
@@ -145,7 +147,7 @@ public final class CraftSign implements Listener {
                         // Release old craft if it exists
                         Craft oldCraft = CraftManager.getInstance().getCraftByPlayer(player);
                         if (oldCraft != null)
-                            CraftManager.getInstance().removeCraft(oldCraft, CraftReleaseEvent.Reason.PLAYER);
+                            CraftManager.getInstance().release(oldCraft, CraftReleaseEvent.Reason.PLAYER, false);
                     }
                 }
         );
