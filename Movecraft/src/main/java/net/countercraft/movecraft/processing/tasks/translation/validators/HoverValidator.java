@@ -1,6 +1,7 @@
 package net.countercraft.movecraft.processing.tasks.translation.validators;
 
 import net.countercraft.movecraft.MovecraftLocation;
+import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.processing.MovecraftWorld;
@@ -11,10 +12,11 @@ import org.bukkit.Material;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-public class HoverValidator implements TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, CraftType> {
+public class HoverValidator implements TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, Craft> {
     @Override
     @Contract(pure = true)
-    public @NotNull Result validate(@NotNull MovecraftLocation translation, @NotNull MovecraftWorld world, @NotNull HitBox hitBox, @NotNull CraftType type) {
+    public @NotNull Result validate(@NotNull MovecraftLocation translation, @NotNull MovecraftWorld world, @NotNull HitBox hitBox, @NotNull Craft craft) {
+        final CraftType type = craft.getType();
         if (type.getMaterialSetProperty(CraftType.FORBIDDEN_HOVER_OVER_BLOCKS).size() > 0){
             MovecraftLocation test = new MovecraftLocation(hitBox.getMidPoint().getX(), hitBox.getMinY(), hitBox.getMidPoint().getZ());
             test = test.translate(0, -1, 0);

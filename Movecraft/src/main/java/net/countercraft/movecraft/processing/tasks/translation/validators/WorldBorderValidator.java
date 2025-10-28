@@ -1,6 +1,7 @@
 package net.countercraft.movecraft.processing.tasks.translation.validators;
 
 import net.countercraft.movecraft.MovecraftLocation;
+import net.countercraft.movecraft.craft.Craft;
 import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.processing.MovecraftWorld;
@@ -11,9 +12,9 @@ import org.bukkit.WorldBorder;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-public class WorldBorderValidator implements TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, CraftType> {
+public class WorldBorderValidator implements TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, Craft> {
     @Override
-    public @NotNull Result validate(@NotNull MovecraftLocation translation, @NotNull MovecraftWorld movecraftWorld, @NotNull HitBox hitBox, @NotNull CraftType type) {
+    public @NotNull Result validate(@NotNull MovecraftLocation translation, @NotNull MovecraftWorld movecraftWorld, @NotNull HitBox hitBox, @NotNull Craft craft) {
         var border = movecraftWorld.getWorldBorder();
         for(var querry : new MovecraftLocation[]{new MovecraftLocation(hitBox.getMaxX(), hitBox.getMaxY(), hitBox.getMaxZ()), new MovecraftLocation(hitBox.getMinX(), hitBox.getMinY(), hitBox.getMinZ())}){
             if(!withinWorldBorder(border, querry)){

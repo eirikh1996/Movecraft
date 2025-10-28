@@ -51,7 +51,7 @@ public class TranslationTask implements Supplier<Effect> {
                         I18nSupport.getInternationalisedString("Translation - Failed Craft Is Disabled"))
                 : Result.succeed()));
     }
-    private static final List<TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, CraftType>> translationValidators = new ArrayList<>();
+    private static final List<TetradicPredicate<MovecraftLocation, MovecraftWorld, HitBox, Craft>> translationValidators = new ArrayList<>();
     static {
         translationValidators.add(new MinHeightValidator());
         translationValidators.add(new MaxHeightValidator());
@@ -140,7 +140,7 @@ public class TranslationTask implements Supplier<Effect> {
             //TODO: Take Fuel
             fuelBurnEffect = () -> Bukkit.getLogger().info("This is where we'd take ur fuel, if we had some");
         }
-        var translationResult = translationValidators.stream().reduce(TetradicPredicate::and).orElseThrow().validate(translation, destinationWorld, destinationLocations, craft.getType());
+        var translationResult = translationValidators.stream().reduce(TetradicPredicate::and).orElseThrow().validate(translation, destinationWorld, destinationLocations, craft);
         if(!translationResult.isSucess()){
             return () -> craft.getAudience().sendMessage(Component.text(translationResult.getMessage()));
         }
