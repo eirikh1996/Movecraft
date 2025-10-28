@@ -113,6 +113,9 @@ public class TranslationTask implements Supplier<Effect> {
                 continue;
             }
             var destinationMaterial = destinationWorld.getMaterial(destination);
+            if (destinationMaterial.isAir()) { //Do not collide with air
+                continue;
+            }
             if(craft.getType().getMaterialSetProperty(CraftType.PASSTHROUGH_BLOCKS).contains(destinationMaterial)){
                 phaseLocations.add(destination);
                 continue;
@@ -150,6 +153,7 @@ public class TranslationTask implements Supplier<Effect> {
         // Direct float comparison due to check for statically initialized value
         callCollisionEvent(craft, collisions, preTranslateEvent.getWorld());
         if(craft.getType().getFloatProperty(CraftType.COLLISION_EXPLOSION) <= 0F && !collisions.isEmpty()){
+            collisions.forEach( (l) -> Bukkit.broadcastMessage(l.toString() + ": " + destinationWorld.getMaterial(l)));
             //TODO: collision highlights
             return () -> craft.getAudience().sendMessage(Component.text(String.format(I18nSupport.getInternationalisedString("Translation - Failed Craft is obstructed") + " @ %d,%d,%d,%s", 0, 0, 0, "not_implemented")));
         }
