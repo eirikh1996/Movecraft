@@ -6,7 +6,6 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.TrackedLocation;
 import net.countercraft.movecraft.async.rotation.RotationTask;
-import net.countercraft.movecraft.async.translation.TranslationTask;
 import net.countercraft.movecraft.config.Settings;
 import net.countercraft.movecraft.craft.datatag.CraftDataTagContainer;
 import net.countercraft.movecraft.craft.datatag.CraftDataTagKey;
@@ -16,6 +15,7 @@ import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.processing.CachedMovecraftWorld;
 import net.countercraft.movecraft.processing.MovecraftWorld;
 import net.countercraft.movecraft.processing.WorldManager;
+import net.countercraft.movecraft.processing.tasks.translation.TranslationTask;
 import net.countercraft.movecraft.util.Counter;
 import net.countercraft.movecraft.util.Tags;
 import net.countercraft.movecraft.util.TimingData;
@@ -180,7 +180,15 @@ public abstract class BaseCraft implements Craft {
                 && !(this instanceof SinkingCraft))
             return;
 
-        Movecraft.getInstance().getAsyncManager().submitTask(new TranslationTask(this, world, dx, dy, dz), this);
+        WorldManager.INSTANCE.submit(
+                new TranslationTask(
+                        this,
+                        new MovecraftLocation(dx, dy, dz),
+                        CachedMovecraftWorld.of(world),
+                        MovecraftRotation.NONE
+                )
+        );
+        //Movecraft.getInstance().getAsyncManager().submitTask(new TranslationTask(this, world, dx, dy, dz), this);
     }
 
     @Override
