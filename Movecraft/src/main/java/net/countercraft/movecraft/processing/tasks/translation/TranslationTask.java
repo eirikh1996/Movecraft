@@ -153,7 +153,6 @@ public class TranslationTask implements Supplier<Effect> {
         // Direct float comparison due to check for statically initialized value
         callCollisionEvent(craft, collisions, preTranslateEvent.getWorld());
         if(craft.getType().getFloatProperty(CraftType.COLLISION_EXPLOSION) <= 0F && !collisions.isEmpty()){
-            collisions.forEach( (l) -> Bukkit.broadcastMessage(l.toString() + ": " + destinationWorld.getMaterial(l)));
             //TODO: collision highlights
             return () -> craft.getAudience().sendMessage(Component.text(String.format(I18nSupport.getInternationalisedString("Translation - Failed Craft is obstructed") + " @ %d,%d,%d,%s", 0, 0, 0, "not_implemented")));
         }
@@ -162,7 +161,7 @@ public class TranslationTask implements Supplier<Effect> {
         //TODO: Sinking?
         //TODO: Collision explosion
         //TODO: phase blocks
-        Effect movementEffect = moveCraft();
+        Effect movementEffect = moveCraft(craft, destinationLocations);
         //TODO: un-phase blocks
         Effect teleportEffect = new TeleportationEffect(craft, translation, translateEvent.getWorld());
         return fuelBurnEffect
@@ -177,8 +176,10 @@ public class TranslationTask implements Supplier<Effect> {
         return event;
     }
 
-    private static @NotNull Effect moveCraft(){
-        return null;
+    private static @NotNull Effect moveCraft(Craft craft, HitBox destinationLocations){
+        return () -> {
+
+        };
     }
 
     private static @NotNull Effect fluidBox(Craft craft, MovecraftLocation translation){
