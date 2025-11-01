@@ -18,9 +18,7 @@ import net.countercraft.movecraft.events.SignTranslateEvent;
 import net.countercraft.movecraft.util.CollectionUtils;
 import net.countercraft.movecraft.util.MathUtils;
 import net.countercraft.movecraft.util.Tags;
-import net.countercraft.movecraft.util.hitboxes.HitBox;
-import net.countercraft.movecraft.util.hitboxes.SetHitBox;
-import net.countercraft.movecraft.util.hitboxes.SolidHitBox;
+import net.countercraft.movecraft.util.hitboxes.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -107,17 +105,19 @@ public class CraftRotateCommand extends UpdateCommand {
             final int maxY = overlap.isEmpty() ? craft.getHitBox().getMaxY() : Collections.max(overlap, Comparator.comparingInt(Location::getBlockY)).getBlockY();
             final int minZ = craft.getHitBox().getMinZ();
             final int maxZ = craft.getHitBox().getMaxZ();
-            final HitBox[] surfaces = {
-                    new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(minX, maxY, maxZ)),
-                    new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, minZ)),
-                    new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
-                    new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
-                    new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))};
-            //Valid exterior starts as the 6 surface planes of the HitBox with the locations that lie in the HitBox removed
+            /*final HitBox[] surfaces = {
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
+                new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
+                new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))
+        };*/
             final SetHitBox validExterior = new SetHitBox();
-            for (HitBox hitBox : surfaces) {
-                validExterior.addAll(Sets.difference(hitBox.asSet(),craft.getHitBox().asSet()));
-            }
+        /*for (HitBox hitBox : surfaces) {
+            validExterior.addAll(new BitmapHitBox(hitBox).difference(craft.getHitBox()));
+        }*/
+            final OpenHollowHitBox openHollowHitBox = new OpenHollowHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, maxZ));
+            validExterior.addAll(new BitmapHitBox(openHollowHitBox).difference(craft.getHitBox()));
 
             //Check to see which locations in the from set are actually outside of the craft
             SetHitBox visited = new SetHitBox();

@@ -30,10 +30,7 @@ import net.countercraft.movecraft.util.AtomicLocationSet;
 import net.countercraft.movecraft.util.CollectionUtils;
 import net.countercraft.movecraft.util.SupportUtils;
 import net.countercraft.movecraft.util.Tags;
-import net.countercraft.movecraft.util.hitboxes.BitmapHitBox;
-import net.countercraft.movecraft.util.hitboxes.HitBox;
-import net.countercraft.movecraft.util.hitboxes.SetHitBox;
-import net.countercraft.movecraft.util.hitboxes.SolidHitBox;
+import net.countercraft.movecraft.util.hitboxes.*;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -161,17 +158,20 @@ public class DetectionTask implements Supplier<Effect> {
         final int maxY = overlap.isEmpty() ? craft.getHitBox().getMaxY() : Collections.max(overlap, Comparator.comparingInt(Location::getBlockY)).getBlockY();
         final int minZ = craft.getHitBox().getMinZ();
         final int maxZ = craft.getHitBox().getMaxZ();
-        final HitBox[] surfaces = {
+        /*final HitBox[] surfaces = {
                 new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(minX, maxY, maxZ)),
                 new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, minZ)),
                 new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(minX, maxY, maxZ)),
                 new SolidHitBox(new MovecraftLocation(maxX, minY, maxZ), new MovecraftLocation(maxX, maxY, minZ)),
                 new SolidHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, minY, maxZ))
-        };
+        };*/
         final SetHitBox validExterior = new SetHitBox();
-        for (HitBox hitBox : surfaces) {
+        /*for (HitBox hitBox : surfaces) {
             validExterior.addAll(new BitmapHitBox(hitBox).difference(craft.getHitBox()));
-        }
+        }*/
+        final OpenHollowHitBox openHollowHitBox = new OpenHollowHitBox(new MovecraftLocation(minX, minY, minZ), new MovecraftLocation(maxX, maxY, maxZ));
+        validExterior.addAll(new BitmapHitBox(openHollowHitBox).difference(craft.getHitBox()));
+
 
         //Check to see which locations in the from set are actually outside of the craft
         //use a modified BFS for multiple origin elements
