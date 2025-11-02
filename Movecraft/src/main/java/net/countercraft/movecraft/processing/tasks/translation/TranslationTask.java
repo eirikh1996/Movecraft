@@ -82,16 +82,16 @@ public class TranslationTask implements Supplier<Effect> {
             };
         }
         var preTranslationResult = preTranslationValidators.stream().reduce(MonadicPredicate::and).orElseThrow().validate(craft);
-        if(!preTranslationResult.isSucess()){
+        if (!preTranslationResult.isSucess()) {
             return () -> craft.getAudience().sendMessage(Component.text(preTranslationResult.getMessage()));
         }
-        var preTranslateEvent = WorldManager.INSTANCE.executeMain(()->{
+        var preTranslateEvent = WorldManager.INSTANCE.executeMain(() -> {
             var event = new CraftPreTranslateEvent(craft, translation.getX(), translation.getY(), translation.getZ(), craft.getWorld());
             Bukkit.getServer().getPluginManager().callEvent(event);
             return event;
         });
         if (preTranslateEvent.isCancelled()) {
-            return ()-> craft.getAudience().sendMessage(Component.text(preTranslateEvent.getFailMessage()));
+            return () -> craft.getAudience().sendMessage(Component.text(preTranslateEvent.getFailMessage()));
         }
         translation = new MovecraftLocation(preTranslateEvent.getDx(), preTranslateEvent.getDy(), preTranslateEvent.getDz());
         destinationWorld = CachedMovecraftWorld.of(preTranslateEvent.getWorld());
@@ -109,14 +109,14 @@ public class TranslationTask implements Supplier<Effect> {
             passthroughBlocks.addAll(Tags.SINKING_PASSTHROUGH);
 
         }
-        for(var originLocation : craft.getHitBox()){
+        for (var originLocation : craft.getHitBox()) {
             var originMaterial = craft.getMovecraftWorld().getMaterial(originLocation);
             // Remove air from hitboxes
-            if(originMaterial.isAir())
+            if (originMaterial.isAir())
                 continue;
-            if(Tags.FURNACES.contains(originMaterial)) {
+            if (Tags.FURNACES.contains(originMaterial)) {
                 var state = craft.getMovecraftWorld().getState(originLocation);
-                if(state instanceof FurnaceInventory)
+                if (state instanceof FurnaceInventory)
                     fuelSources.add((FurnaceInventory) state);
             }
 
@@ -124,19 +124,19 @@ public class TranslationTask implements Supplier<Effect> {
 
             destinationLocations.add(destination);
             // previous locations cannot collide
-            if(craft.getMovecraftWorld().equals(destinationWorld) && craft.getHitBox().contains(destination)){
+            if (craft.getMovecraftWorld().equals(destinationWorld) && craft.getHitBox().contains(destination)) {
                 continue;
             }
             var destinationMaterial = destinationWorld.getMaterial(destination);
             if (destinationMaterial.isAir()) { //Do not collide with air
                 continue;
             }
-            if(passthroughBlocks.contains(destinationMaterial)){
+            if (passthroughBlocks.contains(destinationMaterial)) {
                 phaseLocations.add(destination);
                 continue;
             }
-            if(craft.getType().getMaterialSetProperty(CraftType.HARVEST_BLOCKS).contains(destinationMaterial) &&
-                    craft.getType().getMaterialSetProperty(CraftType.HARVESTER_BLADE_BLOCKS).contains(originMaterial)){
+            if (craft.getType().getMaterialSetProperty(CraftType.HARVEST_BLOCKS).contains(destinationMaterial) &&
+                    craft.getType().getMaterialSetProperty(CraftType.HARVESTER_BLADE_BLOCKS).contains(originMaterial)) {
                 harvestLocations.add(destination);
                 continue;
             }
@@ -144,14 +144,16 @@ public class TranslationTask implements Supplier<Effect> {
         }
         double fuelBurnRate = (double) craft.getType().getPerWorldProperty(CraftType.PER_WORLD_FUEL_BURN_RATE, preTranslateEvent.getWorld());
         Effect fuelBurnEffect;
-        if (craft.getBurningFuel() >= fuelBurnRate) {
+        if (craft instanceof SinkingCraft) { //Do not require fuel for sinking crafts
+            fuelBurnEffect = () -> {  }; //Parse an empty effect for sinking crafts
+        } else if (craft.getBurningFuel() >= fuelBurnRate) {
             //call event
             final FuelBurnEvent event = new FuelBurnEvent(craft, craft.getBurningFuel(), fuelBurnRate);
             submitEvent(event);
             fuelBurnEffect = () -> craft.setBurningFuel(event.getBurningFuel() - event.getFuelBurnRate());
         } else {
             var fuelSource = findFuelHolders(craft.getType(), fuelSources);
-            if(fuelSource == null){
+            if (fuelSource == null) {
                 return () -> craft.getAudience().sendMessage(I18nSupport.getInternationalisedComponent("Translation - Failed Craft out of fuel"));
             }
             callFuelEvent(craft, findFuelStack(craft.getType(), fuelSource));
