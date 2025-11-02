@@ -6,12 +6,10 @@ import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.MovecraftRotation;
 import net.countercraft.movecraft.WorldHandler;
 import net.countercraft.movecraft.craft.Craft;
+import net.countercraft.movecraft.craft.CraftManager;
 import net.countercraft.movecraft.craft.SinkingCraft;
 import net.countercraft.movecraft.craft.type.CraftType;
-import net.countercraft.movecraft.events.CraftCollisionEvent;
-import net.countercraft.movecraft.events.CraftPreTranslateEvent;
-import net.countercraft.movecraft.events.CraftTranslateEvent;
-import net.countercraft.movecraft.events.FuelBurnEvent;
+import net.countercraft.movecraft.events.*;
 import net.countercraft.movecraft.localisation.I18nSupport;
 import net.countercraft.movecraft.processing.CachedMovecraftWorld;
 import net.countercraft.movecraft.processing.MovecraftWorld;
@@ -78,7 +76,10 @@ public class TranslationTask implements Supplier<Effect> {
     @Override
     public Effect get() {
         if (craft.getHitBox().isEmpty()) {
-            return () -> {};
+            return () -> {
+                Movecraft.getInstance().getLogger().warning("Attempted to move craft with empty HashHitBox!");
+                CraftManager.getInstance().release(craft, CraftReleaseEvent.Reason.EMPTY, false);
+            };
         }
         var preTranslationResult = preTranslationValidators.stream().reduce(MonadicPredicate::and).orElseThrow().validate(craft);
         if(!preTranslationResult.isSucess()){
@@ -130,7 +131,7 @@ public class TranslationTask implements Supplier<Effect> {
             if (destinationMaterial.isAir()) { //Do not collide with air
                 continue;
             }
-            if(craft.getType().getMaterialSetProperty(CraftType.PASSTHROUGH_BLOCKS).contains(destinationMaterial)){
+            if(passthroughBlocks.contains(destinationMaterial)){
                 phaseLocations.add(destination);
                 continue;
             }
@@ -170,14 +171,19 @@ public class TranslationTask implements Supplier<Effect> {
         if(collisionExplosion <= 0F && !collisions.isEmpty()){
             if (craft instanceof SinkingCraft) {
                 //TODO: collision highlights
+                MutableHitBox newHitBox = new SetHitBox(craft.getHitBox());
+                MutableHitBox toRemove = new SetHitBox();
                 for (MovecraftLocation collision : collisions) {
                     Material type = destinationWorld.getMaterial(collision);
-                    if (type.isAir() || !passthroughBlocks.contains(type)) {
+                    if (type.isAir() || passthroughBlocks.contains(type)) {
                         continue;
                     }
+                    toRemove.add(collision.subtract(translation));
                     destinationLocations.remove(collision);
-                    craft.getCollapsedHitBox().add(collision);
                 }
+                craft.getCollapsedHitBox().addAll(toRemove);
+                newHitBox.removeAll(toRemove);
+                craft.setHitBox(newHitBox);
 
             } else {
                 MovecraftLocation firstCollision = Collections.min(collisions.asSet(), MovecraftLocation::compareTo);
